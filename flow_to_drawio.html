@@ -290,14 +290,23 @@
 
 <script>
 // ─────────────────────────────────────────────
-// draw.io 스타일 상수 (Python 스크립트와 동일)
+// draw.io 스타일 상수
 // ─────────────────────────────────────────────
 const COMPONENT_STYLES = {
-  ChatInput:   "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;",
-  ChatOutput:  "rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;",
-  TextInput:   "rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;",
-  OpenAIModel: "rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=12;",
-  Prompt:      "rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;",
+  // Langflow 기본 컴포넌트
+  ChatInput:         "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;",
+  ChatOutput:        "rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;",
+  TextInput:         "rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;",
+  OpenAIModel:       "rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=12;",
+  Prompt:            "rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;",
+  // flow_structure.json 타입
+  LLM:               "rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=12;",
+  Memory:            "rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;",
+  ConditionalRouter: "rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;",
+  Tool:              "rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;",
+  Agent:             "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;",
+  APICall:           "rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;",
+  Output:            "rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;",
 };
 
 const DEFAULT_NODE_STYLE =
@@ -307,11 +316,76 @@ const EDGE_STYLE =
   "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;" +
   "exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;";
 
-const NODE_WIDTH  = 180;
-const NODE_HEIGHT = 60;
+// ConditionalRouter는 더 크게
+const NODE_WIDTH  = 200;
+const NODE_HEIGHT = 70;
+const COLS        = 4;    // 자동 배치: 한 행당 노드 수
+const COL_GAP     = 260;  // 열 간격 (px)
+const ROW_GAP     = 120;  // 행 간격 (px)
+const MARGIN      = 40;   // 시작 여백
 
 // ─────────────────────────────────────────────
-// 변환 함수
+// JSON 구조 정규화 (두 가지 포맷 모두 지원)
+// ─────────────────────────────────────────────
+// 포맷 A: flow_structure.json  → { name, nodes[], edges[] }
+// 포맷 B: Langflow export      → { data: { nodes[], edges[] } }
+function normalizeFlow(flow) {
+  // 포맷 A: 루트에 nodes 배열이 있는 경우
+  if (Array.isArray(flow.nodes)) {
+    const nodes = flow.nodes.map((n, idx) => ({
+      id:          n.id || `node_${idx}`,
+      type:        n.type || "Unknown",
+      label:       n.label || n.id || "Unknown",
+      description: n.description || "",
+      subtype:     n.subtype || "",
+      // 위치 정보가 없으면 그리드 자동 배치
+      x: n.position ? Math.round(n.position.x) : MARGIN + (idx % COLS) * COL_GAP,
+      y: n.position ? Math.round(n.position.y) : MARGIN + Math.floor(idx / COLS) * ROW_GAP,
+    }));
+
+    const edges = (flow.edges || []).map((e, idx) => ({
+      id:     e.id || `edge_${idx}`,
+      source: e.source || e.from || "",
+      target: e.target || e.to   || "",
+      label:  e.label  || e.condition || "",
+    }));
+
+    return { name: flow.name || "flow", nodes, edges };
+  }
+
+  // 포맷 B: Langflow export (data.nodes)
+  const data  = flow.data || {};
+  const rawNodes = data.nodes || [];
+  const rawEdges = data.edges || [];
+
+  const nodes = rawNodes.map((n, idx) => {
+    const nd = n.data || {};
+    const info = nd.node || {};
+    return {
+      id:          n.id || `node_${idx}`,
+      type:        nd.type || "Unknown",
+      label:       info.display_name || nd.type || "Unknown",
+      description: info.description  || "",
+      subtype:     "",
+      x: n.position ? Math.round(n.position.x) : MARGIN + (idx % COLS) * COL_GAP,
+      y: n.position ? Math.round(n.position.y) : MARGIN + Math.floor(idx / COLS) * ROW_GAP,
+    };
+  });
+
+  const edges = rawEdges.map((e, idx) => ({
+    id:     e.id || `edge_${idx}`,
+    source: e.source || "",
+    target: e.target || "",
+    label:  e.sourceHandle && e.targetHandle
+              ? `${e.sourceHandle} → ${e.targetHandle}`
+              : "",
+  }));
+
+  return { name: flow.name || "flow", nodes, edges };
+}
+
+// ─────────────────────────────────────────────
+// 유틸
 // ─────────────────────────────────────────────
 function escape(str) {
   return String(str)
@@ -321,65 +395,68 @@ function escape(str) {
     .replace(/"/g, "&quot;");
 }
 
-function nodeLabel(nodeData) {
-  const info = nodeData.node || {};
-  const displayName = info.display_name || nodeData.type || "Unknown";
-  const type = nodeData.type || "";
-  if (type && type !== displayName) {
-    return `&lt;b&gt;${escape(displayName)}&lt;/b&gt;&lt;br/&gt;&lt;i style='font-size:10px'&gt;${escape(type)}&lt;/i&gt;`;
-  }
-  return `&lt;b&gt;${escape(displayName)}&lt;/b&gt;`;
-}
-
 function nodeStyle(type) {
   return COMPONENT_STYLES[type] || DEFAULT_NODE_STYLE;
 }
 
+function nodeSize(type) {
+  // ConditionalRouter(다이아몬드)는 더 크게
+  if (type === "ConditionalRouter") return { w: 220, h: 100 };
+  return { w: NODE_WIDTH, h: NODE_HEIGHT };
+}
+
+// ─────────────────────────────────────────────
+// 변환 함수
+// ─────────────────────────────────────────────
 function convertToDrawio(flow) {
-  const data  = flow.data || {};
-  const nodes = data.nodes || [];
-  const edges = data.edges || [];
+  const { name, nodes, edges } = normalizeFlow(flow);
 
   const lines = [];
-
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push('<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1"' +
     ' connect="1" arrows="1" fold="1" page="1" pageScale="1"' +
-    ' pageWidth="1169" pageHeight="827" math="0" shadow="0">');
+    ' pageWidth="1654" pageHeight="1169" math="0" shadow="0">');
   lines.push('  <root>');
   lines.push('    <mxCell id="0"/>');
   lines.push('    <mxCell id="1" parent="0"/>');
 
   // Nodes
   for (const node of nodes) {
-    const id  = escape(node.id || "");
-    const pos = node.position || {};
-    const x   = Math.round(pos.x || 0);
-    const y   = Math.round(pos.y || 0);
-    const nd  = node.data || {};
-    const style = nodeStyle(nd.type || "");
-    const label = nodeLabel(nd);
+    const id    = escape(node.id);
+    const style = escape(nodeStyle(node.type));
+    const { w, h } = nodeSize(node.type);
+
+    // 라벨: bold 이름 + 이탤릭 타입 (다르면)
+    let labelParts = [`&lt;b&gt;${escape(node.label)}&lt;/b&gt;`];
+    if (node.type && node.type !== node.label) {
+      labelParts.push(`&lt;i style='font-size:9px'&gt;${escape(node.type)}&lt;/i&gt;`);
+    }
+    if (node.subtype) {
+      labelParts.push(`&lt;i style='font-size:9px;color:#888'&gt;[${escape(node.subtype)}]&lt;/i&gt;`);
+    }
+    const label = labelParts.join("&lt;br/&gt;");
+
+    // description을 tooltip으로
+    const tooltip = node.description ? ` tooltip="${escape(node.description)}"` : "";
 
     lines.push(
-      `    <mxCell id="${id}" value="${label}" style="${escape(style)}" vertex="1" parent="1">`
+      `    <mxCell id="${id}" value="${label}"${tooltip} style="${style}" vertex="1" parent="1">`
     );
     lines.push(
-      `      <mxGeometry x="${x}" y="${y}" width="${NODE_WIDTH}" height="${NODE_HEIGHT}" as="geometry"/>`
+      `      <mxGeometry x="${node.x}" y="${node.y}" width="${w}" height="${h}" as="geometry"/>`
     );
     lines.push("    </mxCell>");
   }
 
   // Edges
   for (const edge of edges) {
-    const id     = escape(edge.id || "");
-    const src    = escape(edge.source || "");
-    const tgt    = escape(edge.target || "");
-    const sh     = edge.sourceHandle || "";
-    const th     = edge.targetHandle || "";
-    const tooltip = sh && th ? escape(`${sh} → ${th}`) : "";
+    const id    = escape(edge.id);
+    const src   = escape(edge.source);
+    const tgt   = escape(edge.target);
+    const label = escape(edge.label || "");
 
     lines.push(
-      `    <mxCell id="${id}" value="${tooltip}" style="${escape(EDGE_STYLE)}"` +
+      `    <mxCell id="${id}" value="${label}" style="${escape(EDGE_STYLE)}"` +
       ` edge="1" source="${src}" target="${tgt}" parent="1">`
     );
     lines.push('      <mxGeometry relative="1" as="geometry"/>');
@@ -443,8 +520,8 @@ function loadFile(file) {
   reader.onload = (e) => {
     try {
       const flow = JSON.parse(e.target.result);
-      const nodes = (flow.data?.nodes || []).length;
-      const edges = (flow.data?.edges || []).length;
+      // 두 포맷 모두 지원: 포맷A(flow.nodes) / 포맷B(flow.data.nodes)
+      const normalized = normalizeFlow(flow);
 
       currentFlow     = flow;
       currentFileName = file.name;
@@ -455,9 +532,9 @@ function loadFile(file) {
       fileInfo.classList.add("visible");
 
       // Update stats
-      statNodes.textContent = nodes;
-      statEdges.textContent = edges;
-      statName.textContent  = flow.name || "—";
+      statNodes.textContent = normalized.nodes.length;
+      statEdges.textContent = normalized.edges.length;
+      statName.textContent  = normalized.name || "—";
       statsEl.classList.add("visible");
 
       dropzone.classList.add("has-file");
