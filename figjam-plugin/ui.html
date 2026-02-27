@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f7f8;
+      padding: 20px;
+      font-size: 13px;
+      color: #1a1a2e;
+    }
+
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 16px;
+    }
+    h1 { font-size: 16px; font-weight: 700; }
+    .subtitle { color: #6b7280; font-size: 12px; margin-bottom: 18px; }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed #c7d2fe; border-radius: 10px;
+      padding: 28px 16px; text-align: center; cursor: pointer;
+      background: #fafafa; transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .dropzone.hover  { border-color: #6366f1; background: #eef2ff; }
+    .dropzone.loaded { border-color: #10b981; background: #f0fdf4; }
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .drop-icon   { font-size: 28px; margin-bottom: 8px; }
+    .drop-title  { font-size: 13px; font-weight: 600; color: #374151; }
+    .drop-hint   { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+
+    /* Preview */
+    .preview {
+      display: none; margin-top: 14px;
+      background: #fff; border: 1px solid #e5e7eb;
+      border-radius: 8px; padding: 12px 14px;
+    }
+    .preview.visible { display: block; }
+    .preview-title { font-weight: 700; font-size: 13px; margin-bottom: 10px; }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-q  { background: #fef9c3; color: #854d0e; }
+    .badge-pp { background: #fee2e2; color: #991b1b; }
+    .badge-fl { background: #ede9fe; color: #5b21b6; }
+
+    /* Status */
+    .status {
+      display: none; margin-top: 12px;
+      padding: 10px 12px; border-radius: 7px;
+      font-size: 12px; align-items: center; gap: 8px;
+    }
+    .status.info    { display: flex; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .status.success { display: flex; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .status.error   { display: flex; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+    /* Buttons */
+    .btn {
+      width: 100%; margin-top: 14px; padding: 12px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+    .btn:not(:disabled):hover { opacity: 0.88; }
+
+    .btn-cancel {
+      width: 100%; margin-top: 8px; padding: 9px;
+      background: none; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 12px; color: #6b7280;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { background: #f3f4f6; }
+
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid #bfdbfe; border-top-color: #1d4ed8;
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <div class="logo-icon">🎤</div>
+    <h1>Interview Insights</h1>
+  </div>
+  <p class="subtitle">분석 JSON을 가져와 FigJam에 한 판으로 정리합니다.</p>
+
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept=".json,application/json" />
+    <div class="drop-icon">📋</div>
+    <div class="drop-title">JSON 파일을 드래그하거나 클릭해서 선택</div>
+    <div class="drop-hint">interview_analyzer.html로 생성한 .json 파일</div>
+  </div>
+
+  <div class="preview" id="preview">
+    <div class="preview-title" id="previewTitle"></div>
+    <div class="badges">
+      <span class="badge badge-q"  id="badgeQ"></span>
+      <span class="badge badge-pp" id="badgePP"></span>
+      <span class="badge badge-fl" id="badgeFL"></span>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <button class="btn" id="createBtn" disabled>FigJam 보드 생성</button>
+  <button class="btn-cancel" id="cancelBtn">닫기</button>
+
+<script>
+let data = null;
+
+const dropzone  = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+const preview   = document.getElementById("preview");
+const prevTitle = document.getElementById("previewTitle");
+const badgeQ    = document.getElementById("badgeQ");
+const badgePP   = document.getElementById("badgePP");
+const badgeFL   = document.getElementById("badgeFL");
+const statusEl  = document.getElementById("status");
+const createBtn = document.getElementById("createBtn");
+const cancelBtn = document.getElementById("cancelBtn");
+
+// — drop zone ——————————————————————————————————
+dropzone.addEventListener("dragover",  e => { e.preventDefault(); dropzone.classList.add("hover"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hover"));
+dropzone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropzone.classList.remove("hover");
+  loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file) return;
+  if (!file.name.endsWith(".json")) { showStatus("error", "JSON 파일만 지원됩니다."); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      data = JSON.parse(e.target.result);
+
+      prevTitle.textContent = data.interview_title || "(제목 없음)";
+      badgeQ.textContent  = `💬 질문 ${(data.questions  || []).length}개`;
+      badgePP.textContent = `⚠️ 페인포인트 ${(data.pain_points || []).length}개`;
+      badgeFL.textContent = `🔀 플로우 ${(data.flows || []).length}개`;
+
+      preview.classList.add("visible");
+      dropzone.classList.add("loaded");
+      createBtn.disabled = false;
+      clearStatus();
+    } catch {
+      showStatus("error", "JSON 파싱 실패: 올바른 분석 파일인지 확인하세요.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+// — create board ——————————————————————————————
+createBtn.addEventListener("click", () => {
+  if (!data) return;
+  createBtn.disabled = true;
+  showStatus("info", '<span class="spinner"></span>&nbsp; 보드 생성 중…');
+  parent.postMessage({ pluginMessage: { type: "CREATE_BOARD", data } }, "*");
+});
+
+cancelBtn.addEventListener("click", () => {
+  parent.postMessage({ pluginMessage: { type: "CLOSE" } }, "*");
+});
+
+// — messages from code.js ————————————————————
+window.onmessage = e => {
+  const msg = e.data.pluginMessage;
+  if (!msg) return;
+  if (msg.type === "STATUS")  showStatus("info", `<span class="spinner"></span>&nbsp; ${msg.message}`);
+  if (msg.type === "DONE")    showStatus("success", "✅ FigJam 보드 생성 완료!");
+  if (msg.type === "ERROR")   { showStatus("error", `❌ 오류: ${msg.message}`); createBtn.disabled = false; }
+};
+
+function showStatus(type, html) {
+  statusEl.className = `status ${type}`;
+  statusEl.innerHTML = html;
+}
+function clearStatus() {
+  statusEl.className = "status";
+  statusEl.innerHTML = "";
+}
+</script>
+</body>
+</html>

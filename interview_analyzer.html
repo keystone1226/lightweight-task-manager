@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>인터뷰 분석기 — Interview Insights</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 40px 48px;
+      max-width: 640px;
+      width: 100%;
+    }
+
+    .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 20px;
+    }
+    h1 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+    .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 28px; margin-top: 4px; }
+
+    /* Step indicator */
+    .steps {
+      display: flex; gap: 0; margin-bottom: 32px;
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+    .step {
+      flex: 1; padding: 10px 8px; text-align: center;
+      font-size: 12px; font-weight: 600; color: #9ca3af;
+      background: #f9fafb; border-right: 1px solid #e5e7eb;
+    }
+    .step:last-child { border-right: none; }
+    .step.active { background: #eef2ff; color: #4f46e5; }
+    .step.done   { background: #f0fdf4; color: #15803d; }
+
+    /* Form fields */
+    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    label span { font-weight: 400; color: #9ca3af; font-size: 12px; margin-left: 4px; }
+
+    .field { margin-bottom: 20px; }
+
+    input[type="password"], input[type="text"] {
+      width: 100%; padding: 10px 14px;
+      border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 14px; color: #111827;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed #c7d2fe; border-radius: 12px;
+      padding: 36px 20px; text-align: center; cursor: pointer;
+      background: #fafafa; transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .dropzone.hover  { border-color: #6366f1; background: #eef2ff; }
+    .dropzone.loaded { border-color: #10b981; background: #f0fdf4; }
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .drop-icon  { font-size: 32px; margin-bottom: 10px; }
+    .drop-title { font-size: 14px; font-weight: 600; color: #374151; }
+    .drop-hint  { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+
+    .file-badge {
+      display: none; align-items: center; gap: 10px; margin-top: 14px;
+      padding: 10px 14px; background: #f3f4f6; border-radius: 8px;
+    }
+    .file-badge.visible { display: flex; }
+    .file-badge-name { font-size: 13px; font-weight: 600; flex: 1; }
+    .file-badge-meta { font-size: 11px; color: #6b7280; }
+    .remove-btn {
+      background: none; border: none; cursor: pointer; color: #9ca3af;
+      font-size: 16px; padding: 2px 6px; border-radius: 4px;
+    }
+    .remove-btn:hover { color: #ef4444; background: #fee2e2; }
+
+    /* Analyse button */
+    .analyse-btn {
+      width: 100%; margin-top: 24px; padding: 14px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .analyse-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+    .analyse-btn:not(:disabled):hover { opacity: 0.90; }
+    .analyse-btn:not(:disabled):active { transform: scale(0.99); }
+
+    /* Progress */
+    .progress {
+      display: none; margin-top: 20px;
+      padding: 14px 16px; background: #eff6ff;
+      border: 1px solid #bfdbfe; border-radius: 10px;
+    }
+    .progress.visible { display: block; }
+    .progress-bar-wrap {
+      height: 6px; background: #dbeafe; border-radius: 3px; margin-bottom: 10px; overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%; background: #6366f1; border-radius: 3px;
+      width: 0%; transition: width .4s ease;
+    }
+    .progress-text { font-size: 13px; color: #1d4ed8; }
+
+    /* Result */
+    .result-section {
+      display: none; margin-top: 20px;
+    }
+    .result-section.visible { display: block; }
+
+    .result-preview {
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+    }
+    .result-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+    .result-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+    .rbadge {
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .rbadge-q  { background: #fef9c3; color: #854d0e; }
+    .rbadge-pp { background: #fee2e2; color: #991b1b; }
+    .rbadge-fl { background: #ede9fe; color: #5b21b6; }
+
+    .download-btn {
+      width: 100%; padding: 13px;
+      background: #10b981; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity .2s;
+    }
+    .download-btn:hover { opacity: 0.88; }
+
+    .reset-btn {
+      width: 100%; margin-top: 10px; padding: 10px;
+      background: none; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 13px; color: #6b7280; cursor: pointer;
+    }
+    .reset-btn:hover { background: #f3f4f6; }
+
+    /* Error */
+    .error-box {
+      display: none; margin-top: 16px; padding: 12px 16px;
+      background: #fef2f2; border: 1px solid #fecaca;
+      border-radius: 8px; color: #b91c1c; font-size: 13px;
+    }
+    .error-box.visible { display: block; }
+
+    .footer {
+      margin-top: 28px; padding-top: 20px;
+      border-top: 1px solid #f3f4f6;
+      font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;
+    }
+
+    .tip {
+      background: #fefce8; border: 1px solid #fde68a;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 12px; color: #92400e; margin-bottom: 20px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">🎤</div>
+    <h1>인터뷰 분석기</h1>
+  </div>
+  <p class="subtitle">녹취록 .txt 파일을 업로드하면 Claude AI가 핵심 내용을 JSON으로 정리합니다.</p>
+
+  <div class="steps">
+    <div class="step active" id="step1">① API 키 입력</div>
+    <div class="step"        id="step2">② 파일 업로드</div>
+    <div class="step"        id="step3">③ 분석 완료</div>
+  </div>
+
+  <!-- API Key -->
+  <div class="field">
+    <label>Anthropic API 키 <span>(Claude에 접근하는 키)</span></label>
+    <input type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off" />
+  </div>
+
+  <div class="tip">
+    💡 API 키는 이 페이지 내에서만 사용되며, 서버로 전송되지 않습니다.
+       브라우저를 닫으면 사라집니다.
+  </div>
+
+  <!-- File upload -->
+  <div class="field">
+    <label>인터뷰 녹취록 <span>(.txt)</span></label>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".txt,text/plain" />
+      <div class="drop-icon">📄</div>
+      <div class="drop-title">텍스트 파일을 드래그하거나 클릭해서 선택</div>
+      <div class="drop-hint">.txt 파일 (UTF-8 권장)</div>
+    </div>
+    <div class="file-badge" id="fileBadge">
+      <span>📄</span>
+      <span class="file-badge-name"  id="fbName"></span>
+      <span class="file-badge-meta"  id="fbMeta"></span>
+      <button class="remove-btn" id="removeBtn">✕</button>
+    </div>
+  </div>
+
+  <!-- Analyse button -->
+  <button class="analyse-btn" id="analyseBtn" disabled>분석 시작</button>
+
+  <!-- Progress -->
+  <div class="progress" id="progress">
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-text" id="progressText">분석 준비 중…</div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Result -->
+  <div class="result-section" id="resultSection">
+    <div class="result-preview">
+      <div class="result-title" id="resultTitle"></div>
+      <div class="result-badges">
+        <span class="rbadge rbadge-q"  id="rQ"></span>
+        <span class="rbadge rbadge-pp" id="rPP"></span>
+        <span class="rbadge rbadge-fl" id="rFL"></span>
+      </div>
+    </div>
+    <button class="download-btn" id="downloadBtn">⬇ JSON 다운로드 (FigJam 플러그인용)</button>
+    <button class="reset-btn"    id="resetBtn">다른 파일 분석</button>
+  </div>
+
+  <div class="footer">
+    설치 불필요 · 파일이 서버로 전송되지 않습니다 · 브라우저 내에서만 처리됩니다
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────────────────────
+// Claude API prompt builder
+// ──────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are a senior UX researcher. Extract structured information from interview transcripts.
+Always respond with valid JSON ONLY — no markdown fences, no preamble, no explanation.
+The JSON must strictly follow the schema provided by the user.`;
+
+function buildPrompt(transcript) {
+  return `아래 인터뷰 녹취록을 분석해서 다음 JSON 스키마에 맞춰 정리해줘.
+JSON만 출력하고, 다른 텍스트(마크다운 포함)는 절대 출력하지 마.
+
+=== JSON 스키마 ===
+{
+  "interview_title": "인터뷰의 핵심 주제를 담은 간결한 제목 (20자 이내)",
+  "questions": [
+    { "id": "q_1", "text": "인터뷰어의 주요 질문 내용 (중복 제외)", "category": "질문 카테고리 예: 배경/니즈/행동/만족도" }
+  ],
+  "pain_points": [
+    {
+      "id": "pp_1",
+      "title": "페인포인트 제목 (15자 이내)",
+      "description": "상세 설명 (2~3문장)",
+      "severity": "high 또는 medium 또는 low",
+      "quote": "녹취록에서 인터뷰이가 직접 언급한 문장 (있을 경우만)"
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow_1",
+      "title": "이 플로우를 설명하는 한 줄 제목",
+      "nodes": [
+        { "id": "n1", "label": "단계 이름 (10자 이내)", "type": "Start 또는 Process 또는 Decision 또는 End", "description": "" }
+      ],
+      "edges": [
+        { "id": "e1", "source": "n1", "target": "n2", "label": "조건 또는 레이블 (선택)" }
+      ]
+    }
+  ]
+}
+
+=== 규칙 ===
+- questions: 인터뷰어가 한 중요 질문만 포함 (중복 질문 제외, 최대 12개)
+- pain_points: 인터뷰이가 언급한 불편함·문제점·니즈 (최대 12개)
+  severity 기준: high=업무/서비스에 심각한 영향, medium=불편하지만 우회 가능, low=사소한 불편
+- flows: 인터뷰이가 설명한 업무 프로세스·사용자 여정·의사결정 흐름이 있을 경우만 포함 (없으면 [])
+  - 하나의 인터뷰에서 여러 플로우가 나올 수 있음 (각각 별도 객체)
+  - 노드 id는 flow 안에서 unique해야 함
+  - edge의 source/target은 반드시 존재하는 노드 id여야 함
+  - Start 타입 노드 1개, End 타입 노드 1개 이상 포함
+
+=== 인터뷰 녹취록 ===
+---
+${transcript}
+---`;
+}
+
+// ──────────────────────────────────────────────────────────────
+// UI state
+// ──────────────────────────────────────────────────────────────
+let transcriptText = "";
+let transcriptName = "";
+let resultJSON     = null;
+
+const apiKeyEl    = document.getElementById("apiKey");
+const dropzone    = document.getElementById("dropzone");
+const fileInput   = document.getElementById("fileInput");
+const fileBadge   = document.getElementById("fileBadge");
+const fbName      = document.getElementById("fbName");
+const fbMeta      = document.getElementById("fbMeta");
+const removeBtn   = document.getElementById("removeBtn");
+const analyseBtn  = document.getElementById("analyseBtn");
+const progress    = document.getElementById("progress");
+const progressBar = document.getElementById("progressBar");
+const progressTxt = document.getElementById("progressText");
+const errorBox    = document.getElementById("errorBox");
+const resultSec   = document.getElementById("resultSection");
+const resultTitle = document.getElementById("resultTitle");
+const rQ          = document.getElementById("rQ");
+const rPP         = document.getElementById("rPP");
+const rFL         = document.getElementById("rFL");
+const downloadBtn = document.getElementById("downloadBtn");
+const resetBtn    = document.getElementById("resetBtn");
+
+// step indicators
+const s1 = document.getElementById("step1");
+const s2 = document.getElementById("step2");
+const s3 = document.getElementById("step3");
+
+// ── File loading ──────────────────────────────────────────────
+dropzone.addEventListener("dragover",  e => { e.preventDefault(); dropzone.classList.add("hover"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hover"));
+dropzone.addEventListener("drop", e => {
+  e.preventDefault(); dropzone.classList.remove("hover");
+  loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file) return;
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (ext !== "txt") { showError("텍스트 파일(.txt)만 지원됩니다."); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    transcriptText = e.target.result;
+    transcriptName = file.name;
+
+    fbName.textContent = file.name;
+    fbMeta.textContent = `${(file.size / 1024).toFixed(1)} KB · ${transcriptText.split(/\s+/).length.toLocaleString()}단어`;
+    fileBadge.classList.add("visible");
+    dropzone.classList.add("loaded");
+    updateAnalyseBtn();
+    clearError();
+
+    s2.classList.add("done");
+    s2.classList.remove("active");
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+removeBtn.addEventListener("click", e => {
+  e.stopPropagation();
+  transcriptText = "";
+  transcriptName = "";
+  fileBadge.classList.remove("visible");
+  dropzone.classList.remove("loaded");
+  fileInput.value = "";
+  updateAnalyseBtn();
+  s2.classList.remove("done");
+});
+
+apiKeyEl.addEventListener("input", updateAnalyseBtn);
+
+function updateAnalyseBtn() {
+  analyseBtn.disabled = !(apiKeyEl.value.trim() && transcriptText);
+}
+
+// ── Analyse ───────────────────────────────────────────────────
+analyseBtn.addEventListener("click", async () => {
+  const apiKey     = apiKeyEl.value.trim();
+  const transcript = transcriptText;
+  if (!apiKey || !transcript) return;
+
+  analyseBtn.disabled = true;
+  clearError();
+  resultSec.classList.remove("visible");
+  showProgress(10, "Claude에게 녹취록 전송 중…");
+
+  try {
+    showProgress(30, "Claude가 분석 중… (10~30초 소요)");
+
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key":                            apiKey,
+        "anthropic-version":                    "2023-06-01",
+        "content-type":                         "application/json",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model:      "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system:     SYSTEM_PROMPT,
+        messages:   [{ role: "user", content: buildPrompt(transcript) }],
+      }),
+    });
+
+    showProgress(75, "응답 수신 중…");
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const body    = await resp.json();
+    const rawText = body.content?.[0]?.text || "";
+
+    showProgress(90, "JSON 파싱 중…");
+
+    // Strip markdown fences if Claude ignored instructions
+    const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    const parsed  = JSON.parse(cleaned);
+
+    resultJSON = {
+      schema_version: "1.0",
+      interview_title: parsed.interview_title || transcriptName.replace(".txt", ""),
+      analyzed_at:     new Date().toISOString().slice(0, 10),
+      source_file:     transcriptName,
+      questions:       parsed.questions    || [],
+      pain_points:     parsed.pain_points  || [],
+      flows:           parsed.flows        || [],
+    };
+
+    showProgress(100, "완료!");
+    setTimeout(() => {
+      progress.classList.remove("visible");
+      showResult(resultJSON);
+    }, 600);
+
+  } catch (err) {
+    hideProgress();
+    analyseBtn.disabled = false;
+    showError(`오류: ${err.message}`);
+  }
+});
+
+function showResult(data) {
+  resultTitle.textContent = data.interview_title;
+  rQ.textContent  = `💬 질문 ${data.questions.length}개`;
+  rPP.textContent = `⚠️ 페인포인트 ${data.pain_points.length}개`;
+  rFL.textContent = `🔀 플로우 ${data.flows.length}개`;
+  resultSec.classList.add("visible");
+  s3.classList.add("done");
+  s3.classList.remove("active");
+}
+
+downloadBtn.addEventListener("click", () => {
+  if (!resultJSON) return;
+  const blob = new Blob([JSON.stringify(resultJSON, null, 2)], { type: "application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `${(resultJSON.interview_title || "interview").replace(/\s+/g, "_")}_analysis.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+resetBtn.addEventListener("click", () => {
+  transcriptText = "";
+  transcriptName = "";
+  resultJSON     = null;
+  fileInput.value = "";
+  fileBadge.classList.remove("visible");
+  dropzone.classList.remove("loaded");
+  resultSec.classList.remove("visible");
+  hideProgress();
+  clearError();
+  analyseBtn.disabled = true;
+  s2.classList.remove("done", "active");
+  s3.classList.remove("done", "active");
+});
+
+// ── Helpers ───────────────────────────────────────────────────
+function showProgress(pct, msg) {
+  progress.classList.add("visible");
+  progressBar.style.width = pct + "%";
+  progressTxt.textContent = msg;
+}
+function hideProgress() { progress.classList.remove("visible"); }
+function showError(msg) { errorBox.className = "error-box visible"; errorBox.textContent = msg; }
+function clearError()   { errorBox.className = "error-box"; errorBox.textContent = ""; }
+</script>
+</body>
+</html>
