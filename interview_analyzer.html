@@ -2,75 +2,111 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>인터뷰 분석기 — Interview Insights</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --safe-b: env(safe-area-inset-bottom, 0px); }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #f0f2f5;
-      min-height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; align-items: flex-start; justify-content: center;
       padding: 40px 24px;
+      -webkit-text-size-adjust: 100%;
     }
 
     .card {
-      background: #fff;
-      border-radius: 16px;
+      background: #fff; border-radius: 16px;
       box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-      padding: 40px 48px;
-      max-width: 640px;
-      width: 100%;
+      padding: 36px 40px; max-width: 640px; width: 100%;
     }
 
     .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
     .logo-icon {
-      width: 40px; height: 40px;
+      width: 40px; height: 40px; flex-shrink: 0;
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       border-radius: 10px; display: flex; align-items: center;
       justify-content: center; color: #fff; font-size: 20px;
     }
     h1 { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-    .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 28px; margin-top: 4px; }
+    .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; margin-top: 4px; }
 
-    /* Step indicator */
+    /* Steps */
     .steps {
-      display: flex; gap: 0; margin-bottom: 32px;
-      border-radius: 8px; overflow: hidden;
-      border: 1px solid #e5e7eb;
+      display: flex; margin-bottom: 24px;
+      border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;
     }
     .step {
-      flex: 1; padding: 10px 8px; text-align: center;
+      flex: 1; padding: 10px 4px; text-align: center;
       font-size: 12px; font-weight: 600; color: #9ca3af;
-      background: #f9fafb; border-right: 1px solid #e5e7eb;
+      background: #f9fafb; border-right: 1px solid #e5e7eb; white-space: nowrap;
     }
     .step:last-child { border-right: none; }
     .step.active { background: #eef2ff; color: #4f46e5; }
     .step.done   { background: #f0fdf4; color: #15803d; }
 
-    /* Form fields */
+    /* Fields */
     label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
     label span { font-weight: 400; color: #9ca3af; font-size: 12px; margin-left: 4px; }
+    .field { margin-bottom: 18px; }
 
-    .field { margin-bottom: 20px; }
-
-    input[type="password"], input[type="text"] {
-      width: 100%; padding: 10px 14px;
+    /* 16px prevents iOS auto-zoom */
+    input[type="password"], input[type="text"], textarea {
+      width: 100%; padding: 12px 14px;
       border: 1px solid #d1d5db; border-radius: 8px;
-      font-size: 14px; color: #111827;
+      font-size: 16px; color: #111827; font-family: inherit;
+      -webkit-appearance: none;
       transition: border-color .2s, box-shadow .2s;
     }
-    input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+    input:focus, textarea:focus {
+      outline: none; border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+    }
+
+    .save-key {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: #9ca3af; margin-top: 6px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .save-key input[type="checkbox"] { width: 16px; height: 16px; }
+
+    .tip {
+      background: #fefce8; border: 1px solid #fde68a;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 12px; color: #92400e; margin-bottom: 18px; line-height: 1.6;
+    }
+
+    /* Input mode tabs */
+    .input-tabs {
+      display: flex; border: 1px solid #e5e7eb;
+      border-radius: 10px; overflow: hidden; margin-bottom: 14px;
+    }
+    .tab-btn {
+      flex: 1; padding: 12px 6px; border: none; background: #f9fafb;
+      font-size: 13px; font-weight: 600; color: #9ca3af;
+      cursor: pointer; text-align: center;
+      border-right: 1px solid #e5e7eb;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .2s, color .2s;
+    }
+    .tab-btn:last-child { border-right: none; }
+    .tab-btn.active { background: #eef2ff; color: #4f46e5; }
+    .tab-btn:active  { background: #e0e7ff; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
     /* Drop zone */
     .dropzone {
       border: 2px dashed #c7d2fe; border-radius: 12px;
-      padding: 36px 20px; text-align: center; cursor: pointer;
+      padding: 32px 16px; text-align: center; cursor: pointer;
       background: #fafafa; transition: border-color .2s, background .2s;
       position: relative;
+      min-height: 110px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
     }
     .dropzone.hover  { border-color: #6366f1; background: #eef2ff; }
     .dropzone.loaded { border-color: #10b981; background: #f0fdf4; }
@@ -78,44 +114,74 @@
       position: absolute; inset: 0; opacity: 0; cursor: pointer;
       width: 100%; height: 100%;
     }
-    .drop-icon  { font-size: 32px; margin-bottom: 10px; }
+    .drop-icon  { font-size: 28px; margin-bottom: 8px; }
     .drop-title { font-size: 14px; font-weight: 600; color: #374151; }
     .drop-hint  { font-size: 12px; color: #9ca3af; margin-top: 4px; }
 
     .file-badge {
-      display: none; align-items: center; gap: 10px; margin-top: 14px;
-      padding: 10px 14px; background: #f3f4f6; border-radius: 8px;
+      display: none; align-items: center; gap: 10px; margin-top: 12px;
+      padding: 12px 14px; background: #f3f4f6; border-radius: 8px;
     }
     .file-badge.visible { display: flex; }
-    .file-badge-name { font-size: 13px; font-weight: 600; flex: 1; }
-    .file-badge-meta { font-size: 11px; color: #6b7280; }
+    .file-badge-name {
+      font-size: 13px; font-weight: 600; flex: 1;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .file-badge-meta { font-size: 11px; color: #6b7280; flex-shrink: 0; }
     .remove-btn {
       background: none; border: none; cursor: pointer; color: #9ca3af;
-      font-size: 16px; padding: 2px 6px; border-radius: 4px;
+      font-size: 18px; border-radius: 6px;
+      min-width: 44px; min-height: 44px;
+      display: flex; align-items: center; justify-content: center;
     }
-    .remove-btn:hover { color: #ef4444; background: #fee2e2; }
+    .remove-btn:hover, .remove-btn:active { color: #ef4444; background: #fee2e2; }
 
-    /* Analyse button */
+    /* Paste area */
+    .paste-area {
+      width: 100%; min-height: 180px; resize: vertical;
+      font-size: 15px; line-height: 1.7;
+    }
+    .char-count { text-align: right; font-size: 11px; color: #9ca3af; margin-top: 4px; }
+
+    /* Buttons */
     .analyse-btn {
-      width: 100%; margin-top: 24px; padding: 14px;
+      width: 100%; margin-top: 20px; padding: 16px;
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff; border: none; border-radius: 10px;
-      font-size: 15px; font-weight: 600; cursor: pointer;
-      transition: opacity .2s, transform .1s;
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      min-height: 52px; transition: opacity .2s, transform .1s;
     }
     .analyse-btn:disabled { opacity: 0.38; cursor: not-allowed; }
     .analyse-btn:not(:disabled):hover { opacity: 0.90; }
-    .analyse-btn:not(:disabled):active { transform: scale(0.99); }
+    .analyse-btn:not(:disabled):active { transform: scale(0.98); }
+
+    .download-btn {
+      width: 100%; padding: 15px;
+      background: #10b981; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      min-height: 52px; transition: opacity .2s;
+    }
+    .download-btn:hover, .download-btn:active { opacity: 0.88; }
+
+    .reset-btn {
+      width: 100%; margin-top: 10px; padding: 12px;
+      background: none; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 14px; color: #6b7280;
+      cursor: pointer; min-height: 48px;
+    }
+    .reset-btn:hover, .reset-btn:active { background: #f3f4f6; }
 
     /* Progress */
     .progress {
-      display: none; margin-top: 20px;
+      display: none; margin-top: 18px;
       padding: 14px 16px; background: #eff6ff;
       border: 1px solid #bfdbfe; border-radius: 10px;
     }
     .progress.visible { display: block; }
     .progress-bar-wrap {
-      height: 6px; background: #dbeafe; border-radius: 3px; margin-bottom: 10px; overflow: hidden;
+      height: 6px; background: #dbeafe; border-radius: 3px;
+      margin-bottom: 10px; overflow: hidden;
     }
     .progress-bar {
       height: 100%; background: #6366f1; border-radius: 3px;
@@ -124,59 +190,61 @@
     .progress-text { font-size: 13px; color: #1d4ed8; }
 
     /* Result */
-    .result-section {
-      display: none; margin-top: 20px;
-    }
+    .result-section { display: none; margin-top: 18px; }
     .result-section.visible { display: block; }
-
     .result-preview {
       background: #f8fafc; border: 1px solid #e2e8f0;
       border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
     }
     .result-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
-    .result-badges { display: flex; gap: 10px; flex-wrap: wrap; }
-    .rbadge {
-      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
-    }
+    .result-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .rbadge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
     .rbadge-q  { background: #fef9c3; color: #854d0e; }
     .rbadge-pp { background: #fee2e2; color: #991b1b; }
     .rbadge-fl { background: #ede9fe; color: #5b21b6; }
 
-    .download-btn {
-      width: 100%; padding: 13px;
-      background: #10b981; color: #fff;
-      border: none; border-radius: 10px;
-      font-size: 14px; font-weight: 600; cursor: pointer;
-      transition: opacity .2s;
-    }
-    .download-btn:hover { opacity: 0.88; }
-
-    .reset-btn {
-      width: 100%; margin-top: 10px; padding: 10px;
-      background: none; border: 1px solid #d1d5db;
-      border-radius: 8px; font-size: 13px; color: #6b7280; cursor: pointer;
-    }
-    .reset-btn:hover { background: #f3f4f6; }
-
     /* Error */
     .error-box {
-      display: none; margin-top: 16px; padding: 12px 16px;
+      display: none; margin-top: 14px; padding: 12px 16px;
       background: #fef2f2; border: 1px solid #fecaca;
       border-radius: 8px; color: #b91c1c; font-size: 13px;
     }
     .error-box.visible { display: block; }
 
     .footer {
-      margin-top: 28px; padding-top: 20px;
+      margin-top: 24px; padding-top: 18px;
       border-top: 1px solid #f3f4f6;
-      font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;
+      font-size: 11px; color: #9ca3af; text-align: center; line-height: 1.6;
     }
 
-    .tip {
-      background: #fefce8; border: 1px solid #fde68a;
-      border-radius: 8px; padding: 10px 14px;
-      font-size: 12px; color: #92400e; margin-bottom: 20px;
-      line-height: 1.6;
+    /* ═══ MOBILE ═══════════════════════════════════ */
+    @media (max-width: 640px) {
+      body { padding: 0; background: #fff; }
+      .card {
+        border-radius: 0; box-shadow: none;
+        padding: 20px 16px;
+        padding-bottom: calc(20px + var(--safe-b));
+        max-width: 100%;
+      }
+      h1 { font-size: 20px; }
+      .subtitle { font-size: 13px; margin-bottom: 16px; }
+      .steps { margin-bottom: 16px; }
+      .step { padding: 9px 2px; font-size: 11px; }
+      .field { margin-bottom: 14px; }
+      .tab-btn { padding: 14px 4px; font-size: 12px; }
+      .dropzone { padding: 24px 12px; min-height: 96px; }
+      .drop-icon { font-size: 24px; margin-bottom: 6px; }
+      .drop-title { font-size: 13px; }
+      .paste-area { min-height: 140px; }
+      .tip { font-size: 11px; padding: 8px 12px; }
+      .footer { font-size: 10px; }
+
+      .analyse-btn {
+        position: sticky; bottom: 0; z-index: 10;
+        border-radius: 0;
+        margin: 16px -16px 0; width: calc(100% + 32px);
+        padding-bottom: calc(16px + var(--safe-b));
+      }
     }
   </style>
 </head>
@@ -186,55 +254,68 @@
     <div class="logo-icon">🎤</div>
     <h1>인터뷰 분석기</h1>
   </div>
-  <p class="subtitle">녹취록 .txt 파일을 업로드하면 Claude AI가 핵심 내용을 JSON으로 정리합니다.</p>
+  <p class="subtitle">녹취록을 입력하면 Claude AI가 질문·페인포인트·플로우를 JSON으로 정리합니다.</p>
 
   <div class="steps">
-    <div class="step active" id="step1">① API 키 입력</div>
-    <div class="step"        id="step2">② 파일 업로드</div>
-    <div class="step"        id="step3">③ 분석 완료</div>
+    <div class="step active" id="step1">① API 키</div>
+    <div class="step"        id="step2">② 녹취록</div>
+    <div class="step"        id="step3">③ 완료</div>
   </div>
 
   <!-- API Key -->
   <div class="field">
-    <label>Anthropic API 키 <span>(Claude에 접근하는 키)</span></label>
+    <label>Anthropic API 키</label>
     <input type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off" />
+    <label class="save-key">
+      <input type="checkbox" id="saveKeyToggle" /> 이 브라우저에 키 저장 (다음에 자동 입력)
+    </label>
   </div>
 
   <div class="tip">
-    💡 API 키는 이 페이지 내에서만 사용되며, 서버로 전송되지 않습니다.
-       브라우저를 닫으면 사라집니다.
+    💡 API 키는 Anthropic 서버에만 직접 전송됩니다. 별도 서버를 거치지 않습니다.
   </div>
 
-  <!-- File upload -->
+  <!-- Input mode tabs -->
   <div class="field">
-    <label>인터뷰 녹취록 <span>(.txt)</span></label>
-    <div class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept=".txt,text/plain" />
-      <div class="drop-icon">📄</div>
-      <div class="drop-title">텍스트 파일을 드래그하거나 클릭해서 선택</div>
-      <div class="drop-hint">.txt 파일 (UTF-8 권장)</div>
+    <label>녹취록 입력</label>
+    <div class="input-tabs">
+      <button class="tab-btn active" data-tab="file">📄 파일 업로드</button>
+      <button class="tab-btn"        data-tab="paste">📝 직접 입력</button>
     </div>
-    <div class="file-badge" id="fileBadge">
-      <span>📄</span>
-      <span class="file-badge-name"  id="fbName"></span>
-      <span class="file-badge-meta"  id="fbMeta"></span>
-      <button class="remove-btn" id="removeBtn">✕</button>
+
+    <!-- Tab: File -->
+    <div class="tab-panel active" id="panel-file">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".txt,text/plain" />
+        <div class="drop-icon">📄</div>
+        <div class="drop-title" id="dropTitle">탭해서 텍스트 파일 선택</div>
+        <div class="drop-hint">.txt 파일 (UTF-8)</div>
+      </div>
+      <div class="file-badge" id="fileBadge">
+        <span>📄</span>
+        <span class="file-badge-name" id="fbName"></span>
+        <span class="file-badge-meta" id="fbMeta"></span>
+        <button class="remove-btn" id="removeBtn">✕</button>
+      </div>
+    </div>
+
+    <!-- Tab: Paste -->
+    <div class="tab-panel" id="panel-paste">
+      <textarea class="paste-area" id="pasteArea"
+        placeholder="녹취록을 여기에 붙여넣으세요.&#10;&#10;클로바노트, 다글로, 보이스메모 등에서 복사한 텍스트를 그대로 붙여넣기 하면 됩니다."></textarea>
+      <div class="char-count" id="charCount">0자</div>
     </div>
   </div>
 
-  <!-- Analyse button -->
   <button class="analyse-btn" id="analyseBtn" disabled>분석 시작</button>
 
-  <!-- Progress -->
   <div class="progress" id="progress">
     <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
     <div class="progress-text" id="progressText">분석 준비 중…</div>
   </div>
 
-  <!-- Error -->
   <div class="error-box" id="errorBox"></div>
 
-  <!-- Result -->
   <div class="result-section" id="resultSection">
     <div class="result-preview">
       <div class="result-title" id="resultTitle"></div>
@@ -244,19 +325,19 @@
         <span class="rbadge rbadge-fl" id="rFL"></span>
       </div>
     </div>
-    <button class="download-btn" id="downloadBtn">⬇ JSON 다운로드 (FigJam 플러그인용)</button>
-    <button class="reset-btn"    id="resetBtn">다른 파일 분석</button>
+    <button class="download-btn" id="downloadBtn">⬇ JSON 다운로드</button>
+    <button class="reset-btn"    id="resetBtn">다른 인터뷰 분석</button>
   </div>
 
   <div class="footer">
-    설치 불필요 · 파일이 서버로 전송되지 않습니다 · 브라우저 내에서만 처리됩니다
+    설치 불필요 · 데이터가 별도 서버로 전송되지 않습니다 · 브라우저 내에서만 처리
   </div>
 </div>
 
 <script>
-// ──────────────────────────────────────────────────────────────
-// Claude API prompt builder
-// ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// Prompt
+// ══════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT = `You are a senior UX researcher. Extract structured information from interview transcripts.
 Always respond with valid JSON ONLY — no markdown fences, no preamble, no explanation.
 The JSON must strictly follow the schema provided by the user.`;
@@ -310,39 +391,78 @@ ${transcript}
 ---`;
 }
 
-// ──────────────────────────────────────────────────────────────
-// UI state
-// ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// State & DOM
+// ══════════════════════════════════════════════════════════════
 let transcriptText = "";
 let transcriptName = "";
 let resultJSON     = null;
 
-const apiKeyEl    = document.getElementById("apiKey");
-const dropzone    = document.getElementById("dropzone");
-const fileInput   = document.getElementById("fileInput");
-const fileBadge   = document.getElementById("fileBadge");
-const fbName      = document.getElementById("fbName");
-const fbMeta      = document.getElementById("fbMeta");
-const removeBtn   = document.getElementById("removeBtn");
-const analyseBtn  = document.getElementById("analyseBtn");
-const progress    = document.getElementById("progress");
-const progressBar = document.getElementById("progressBar");
-const progressTxt = document.getElementById("progressText");
-const errorBox    = document.getElementById("errorBox");
-const resultSec   = document.getElementById("resultSection");
-const resultTitle = document.getElementById("resultTitle");
-const rQ          = document.getElementById("rQ");
-const rPP         = document.getElementById("rPP");
-const rFL         = document.getElementById("rFL");
-const downloadBtn = document.getElementById("downloadBtn");
-const resetBtn    = document.getElementById("resetBtn");
+const $ = id => document.getElementById(id);
 
-// step indicators
-const s1 = document.getElementById("step1");
-const s2 = document.getElementById("step2");
-const s3 = document.getElementById("step3");
+const apiKeyEl    = $("apiKey");
+const saveKeyTgl  = $("saveKeyToggle");
+const analyseBtn  = $("analyseBtn");
+const progress    = $("progress");
+const progressBar = $("progressBar");
+const progressTxt = $("progressText");
+const errorBox    = $("errorBox");
+const resultSec   = $("resultSection");
+const resultTitle = $("resultTitle");
+const downloadBtn = $("downloadBtn");
+const resetBtn    = $("resetBtn");
+const s1 = $("step1"), s2 = $("step2"), s3 = $("step3");
 
-// ── File loading ──────────────────────────────────────────────
+const dropzone  = $("dropzone");
+const fileInput = $("fileInput");
+const fileBadge = $("fileBadge");
+const fbName    = $("fbName");
+const fbMeta    = $("fbMeta");
+const removeBtn = $("removeBtn");
+const pasteArea = $("pasteArea");
+const charCount = $("charCount");
+
+// ══════════════════════════════════════════════════════════════
+// API key persistence (localStorage)
+// ══════════════════════════════════════════════════════════════
+const KEY_STORAGE = "interview_insights_api_key";
+
+(function loadSavedKey() {
+  const saved = localStorage.getItem(KEY_STORAGE);
+  if (saved) { apiKeyEl.value = saved; saveKeyTgl.checked = true; updateBtn(); }
+})();
+
+apiKeyEl.addEventListener("input", () => {
+  if (saveKeyTgl.checked) localStorage.setItem(KEY_STORAGE, apiKeyEl.value);
+  updateBtn();
+});
+saveKeyTgl.addEventListener("change", () => {
+  if (saveKeyTgl.checked) localStorage.setItem(KEY_STORAGE, apiKeyEl.value);
+  else localStorage.removeItem(KEY_STORAGE);
+});
+
+// ══════════════════════════════════════════════════════════════
+// Tab switching
+// ══════════════════════════════════════════════════════════════
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    $("panel-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// Detect touch → adjust drop-zone label
+// ══════════════════════════════════════════════════════════════
+if (!("ontouchstart" in window) && navigator.maxTouchPoints === 0) {
+  $("dropTitle").textContent = "클릭하거나 드래그해서 파일 선택";
+}
+
+// ══════════════════════════════════════════════════════════════
+// Tab: File upload
+// ══════════════════════════════════════════════════════════════
 dropzone.addEventListener("dragover",  e => { e.preventDefault(); dropzone.classList.add("hover"); });
 dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hover"));
 dropzone.addEventListener("drop", e => {
@@ -360,42 +480,52 @@ function loadFile(file) {
   reader.onload = e => {
     transcriptText = e.target.result;
     transcriptName = file.name;
-
+    const words = transcriptText.split(/\s+/).filter(Boolean).length;
     fbName.textContent = file.name;
-    fbMeta.textContent = `${(file.size / 1024).toFixed(1)} KB · ${transcriptText.split(/\s+/).length.toLocaleString()}단어`;
+    fbMeta.textContent = `${(file.size / 1024).toFixed(1)} KB · ${words.toLocaleString()}단어`;
     fileBadge.classList.add("visible");
     dropzone.classList.add("loaded");
-    updateAnalyseBtn();
-    clearError();
-
-    s2.classList.add("done");
-    s2.classList.remove("active");
+    updateBtn(); clearError(); markDone(s2);
   };
   reader.readAsText(file, "utf-8");
 }
 
 removeBtn.addEventListener("click", e => {
   e.stopPropagation();
-  transcriptText = "";
-  transcriptName = "";
+  transcriptText = ""; transcriptName = "";
   fileBadge.classList.remove("visible");
   dropzone.classList.remove("loaded");
   fileInput.value = "";
-  updateAnalyseBtn();
-  s2.classList.remove("done");
+  updateBtn(); s2.classList.remove("done");
 });
 
-apiKeyEl.addEventListener("input", updateAnalyseBtn);
+// ══════════════════════════════════════════════════════════════
+// Tab: Direct paste
+// ══════════════════════════════════════════════════════════════
+pasteArea.addEventListener("input", () => {
+  const text = pasteArea.value.trim();
+  charCount.textContent = `${text.length.toLocaleString()}자`;
+  if (text.length > 0) {
+    transcriptText = text;
+    transcriptName = "직접입력.txt";
+    markDone(s2);
+  } else {
+    transcriptText = ""; transcriptName = "";
+    s2.classList.remove("done");
+  }
+  updateBtn();
+});
 
-function updateAnalyseBtn() {
+// ══════════════════════════════════════════════════════════════
+// Analyse
+// ══════════════════════════════════════════════════════════════
+function updateBtn() {
   analyseBtn.disabled = !(apiKeyEl.value.trim() && transcriptText);
 }
 
-// ── Analyse ───────────────────────────────────────────────────
 analyseBtn.addEventListener("click", async () => {
-  const apiKey     = apiKeyEl.value.trim();
-  const transcript = transcriptText;
-  if (!apiKey || !transcript) return;
+  const apiKey = apiKeyEl.value.trim();
+  if (!apiKey || !transcriptText) return;
 
   analyseBtn.disabled = true;
   clearError();
@@ -417,7 +547,7 @@ analyseBtn.addEventListener("click", async () => {
         model:      "claude-sonnet-4-6",
         max_tokens: 4096,
         system:     SYSTEM_PROMPT,
-        messages:   [{ role: "user", content: buildPrompt(transcript) }],
+        messages:   [{ role: "user", content: buildPrompt(transcriptText) }],
       }),
     });
 
@@ -433,13 +563,12 @@ analyseBtn.addEventListener("click", async () => {
 
     showProgress(90, "JSON 파싱 중…");
 
-    // Strip markdown fences if Claude ignored instructions
     const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
     const parsed  = JSON.parse(cleaned);
 
     resultJSON = {
-      schema_version: "1.0",
-      interview_title: parsed.interview_title || transcriptName.replace(".txt", ""),
+      schema_version:  "1.0",
+      interview_title: parsed.interview_title || transcriptName.replace(/\.txt$/i, ""),
       analyzed_at:     new Date().toISOString().slice(0, 10),
       source_file:     transcriptName,
       questions:       parsed.questions    || [],
@@ -460,14 +589,17 @@ analyseBtn.addEventListener("click", async () => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════
+// Result & Download
+// ══════════════════════════════════════════════════════════════
 function showResult(data) {
   resultTitle.textContent = data.interview_title;
-  rQ.textContent  = `💬 질문 ${data.questions.length}개`;
-  rPP.textContent = `⚠️ 페인포인트 ${data.pain_points.length}개`;
-  rFL.textContent = `🔀 플로우 ${data.flows.length}개`;
+  $("rQ").textContent  = `💬 질문 ${data.questions.length}개`;
+  $("rPP").textContent = `⚠️ 페인포인트 ${data.pain_points.length}개`;
+  $("rFL").textContent = `🔀 플로우 ${data.flows.length}개`;
   resultSec.classList.add("visible");
-  s3.classList.add("done");
-  s3.classList.remove("active");
+  markDone(s3);
+  resultSec.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 downloadBtn.addEventListener("click", () => {
@@ -482,21 +614,22 @@ downloadBtn.addEventListener("click", () => {
 });
 
 resetBtn.addEventListener("click", () => {
-  transcriptText = "";
-  transcriptName = "";
-  resultJSON     = null;
-  fileInput.value = "";
+  transcriptText = ""; transcriptName = ""; resultJSON = null;
+  fileInput.value = ""; pasteArea.value = "";
+  charCount.textContent = "0자";
   fileBadge.classList.remove("visible");
   dropzone.classList.remove("loaded");
   resultSec.classList.remove("visible");
-  hideProgress();
-  clearError();
+  hideProgress(); clearError();
   analyseBtn.disabled = true;
   s2.classList.remove("done", "active");
   s3.classList.remove("done", "active");
 });
 
-// ── Helpers ───────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════════════
+function markDone(el) { el.classList.add("done"); el.classList.remove("active"); }
 function showProgress(pct, msg) {
   progress.classList.add("visible");
   progressBar.style.width = pct + "%";
