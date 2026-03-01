@@ -93,14 +93,14 @@ async function createInterviewBoard(data) {
   curY += sub.height + SEC_GAP;
 
   // ── Questions ───────────────────────────────────────────────
-  if (data.questions?.length) {
+  if (data.questions && data.questions.length) {
     const nodes = buildQuestionsSection(page, data.questions, LEFT, curY);
     all.push(...nodes);
     curY = bottomOf(nodes) + SEC_GAP;
   }
 
   // ── Pain Points ─────────────────────────────────────────────
-  if (data.pain_points?.length) {
+  if (data.pain_points && data.pain_points.length) {
     const nodes = buildPainPointsSection(page, data.pain_points, LEFT, curY);
     all.push(...nodes);
     curY = bottomOf(nodes) + SEC_GAP;
@@ -155,7 +155,9 @@ function buildPainPointsSection(page, painPoints, startX, startY) {
 
   const sorted = [...painPoints].sort((a, b) => {
     const o = { high: 0, medium: 1, low: 2 };
-    return (o[a.severity] ?? 3) - (o[b.severity] ?? 3);
+    const oa = o[a.severity] !== undefined ? o[a.severity] : 3;
+    const ob = o[b.severity] !== undefined ? o[b.severity] : 3;
+    return oa - ob;
   });
 
   let col = 0, row = 0;
