@@ -335,62 +335,6 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════
-// Prompt
-// ══════════════════════════════════════════════════════════════
-const SYSTEM_PROMPT = `You are a senior UX researcher. Extract structured information from interview transcripts.
-Always respond with valid JSON ONLY — no markdown fences, no preamble, no explanation.
-The JSON must strictly follow the schema provided by the user.`;
-
-function buildPrompt(transcript) {
-  return `아래 인터뷰 녹취록을 분석해서 다음 JSON 스키마에 맞춰 정리해줘.
-JSON만 출력하고, 다른 텍스트(마크다운 포함)는 절대 출력하지 마.
-
-=== JSON 스키마 ===
-{
-  "interview_title": "인터뷰의 핵심 주제를 담은 간결한 제목 (20자 이내)",
-  "questions": [
-    { "id": "q_1", "text": "인터뷰어의 주요 질문 내용 (중복 제외)", "category": "질문 카테고리 예: 배경/니즈/행동/만족도" }
-  ],
-  "pain_points": [
-    {
-      "id": "pp_1",
-      "title": "페인포인트 제목 (15자 이내)",
-      "description": "상세 설명 (2~3문장)",
-      "severity": "high 또는 medium 또는 low",
-      "quote": "녹취록에서 인터뷰이가 직접 언급한 문장 (있을 경우만)"
-    }
-  ],
-  "flows": [
-    {
-      "id": "flow_1",
-      "title": "이 플로우를 설명하는 한 줄 제목",
-      "nodes": [
-        { "id": "n1", "label": "단계 이름 (10자 이내)", "type": "Start 또는 Process 또는 Decision 또는 End", "description": "" }
-      ],
-      "edges": [
-        { "id": "e1", "source": "n1", "target": "n2", "label": "조건 또는 레이블 (선택)" }
-      ]
-    }
-  ]
-}
-
-=== 규칙 ===
-- questions: 인터뷰어가 한 중요 질문만 포함 (중복 질문 제외, 최대 12개)
-- pain_points: 인터뷰이가 언급한 불편함·문제점·니즈 (최대 12개)
-  severity 기준: high=업무/서비스에 심각한 영향, medium=불편하지만 우회 가능, low=사소한 불편
-- flows: 인터뷰이가 설명한 업무 프로세스·사용자 여정·의사결정 흐름이 있을 경우만 포함 (없으면 [])
-  - 하나의 인터뷰에서 여러 플로우가 나올 수 있음 (각각 별도 객체)
-  - 노드 id는 flow 안에서 unique해야 함
-  - edge의 source/target은 반드시 존재하는 노드 id여야 함
-  - Start 타입 노드 1개, End 타입 노드 1개 이상 포함
-
-=== 인터뷰 녹취록 ===
----
-${transcript}
----`;
-}
-
-// ══════════════════════════════════════════════════════════════
 // State & DOM
 // ══════════════════════════════════════════════════════════════
 let transcriptText = "";
@@ -507,19 +451,20 @@ analyseBtn.addEventListener("click", async () => {
   analyseBtn.disabled = true;
   clearError();
   resultSec.classList.remove("visible");
-  showProgress(10, "Claude에게 녹취록 전송 중…");
+  const wordCount = transcriptText.split(/\s+/).filter(Boolean).length;
+  const chunkCount = Math.ceil(wordCount / 4000);
+  const timeEst = chunkCount <= 1 ? "10~30초" : `${chunkCount * 20}~${chunkCount * 40}초`;
+  showProgress(10, `녹취록 전송 중… (${wordCount.toLocaleString()}단어${chunkCount > 1 ? `, ${chunkCount}개 청크로 분할` : ""})`);
 
   try {
-    showProgress(30, "Claude가 분석 중… (10~30초 소요)");
+    showProgress(30, `Claude가 분석 중… (약 ${timeEst} 소요)`);
 
-    const resp = await fetch("/proxy", {
+    const resp = await fetch("/analyze", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model:      "claude-sonnet-4-6",
-        max_tokens: 8192,
-        system:     SYSTEM_PROMPT,
-        messages:   [{ role: "user", content: buildPrompt(transcriptText) }],
+        transcript:  transcriptText,
+        source_name: transcriptName,
       }),
     });
 
@@ -527,32 +472,12 @@ analyseBtn.addEventListener("click", async () => {
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+      throw new Error(err.error || `HTTP ${resp.status}`);
     }
 
-    const body    = await resp.json();
-    const rawText = body.content?.[0]?.text || "";
+    showProgress(90, "결과 정리 중…");
 
-    // 디버그: 브라우저 콘솔에서 실제 응답 확인 (F12 → Console)
-    console.log("[Claude 원본 응답]", rawText.slice(0, 500));
-
-    if (!rawText) {
-      throw new Error(`Claude 응답이 비어있습니다. stop_reason: ${body.stop_reason}, 응답 구조: ${JSON.stringify(Object.keys(body))}`);
-    }
-
-    showProgress(90, "JSON 파싱 중…");
-
-    const parsed = extractJSON(rawText);
-
-    resultJSON = {
-      schema_version:  "1.0",
-      interview_title: parsed.interview_title || transcriptName.replace(/\.txt$/i, ""),
-      analyzed_at:     new Date().toISOString().slice(0, 10),
-      source_file:     transcriptName,
-      questions:       parsed.questions    || [],
-      pain_points:     parsed.pain_points  || [],
-      flows:           parsed.flows        || [],
-    };
+    resultJSON = await resp.json();
 
     showProgress(100, "완료!");
     setTimeout(() => {
@@ -607,67 +532,6 @@ resetBtn.addEventListener("click", () => {
 // ══════════════════════════════════════════════════════════════
 // Helpers
 // ══════════════════════════════════════════════════════════════
-
-// Claude 응답에서 JSON을 추출하는 강건한 파서
-// 마크다운 펜스, 앞뒤 텍스트, unquoted key 등 대응
-function extractJSON(text) {
-  // 전략 1: 그대로 파싱 (이상적인 케이스)
-  try { return JSON.parse(text.trim()); } catch {}
-
-  // 전략 2: 마크다운 코드 블록 제거 후 파싱
-  const stripped = text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/i, "")
-    .trim();
-  try { return JSON.parse(stripped); } catch {}
-
-  // 전략 3: 가장 바깥쪽 {...} 추출 후 파싱
-  const match = text.match(/\{[\s\S]*\}/);
-  if (match) {
-    try { return JSON.parse(match[0]); } catch {}
-  }
-
-  // 전략 4: 따옴표 없는 키를 수정 후 재시도 (unquoted property name)
-  if (match) {
-    const fixed = match[0].replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3');
-    try { return JSON.parse(fixed); } catch {}
-  }
-
-  // 전략 5: max_tokens 초과로 잘린 JSON 복구
-  // { ... 까지만 있고 닫는 }가 없는 경우, 열린 괄호를 닫아서 파싱 시도
-  const start = text.indexOf("{");
-  if (start !== -1) {
-    const partial = text.slice(start);
-    const closes = { "{": "}", "[": "]" };
-    const stack = [];
-    let cutAt = partial.length;
-    let inString = false, escape = false;
-
-    for (let i = 0; i < partial.length; i++) {
-      const c = partial[i];
-      if (escape) { escape = false; continue; }
-      if (c === "\\" && inString) { escape = true; continue; }
-      if (c === '"') { inString = !inString; continue; }
-      if (inString) continue;
-      if (c === "{" || c === "[") stack.push(closes[c]);
-      else if (c === "}" || c === "]") {
-        if (stack.length && stack[stack.length - 1] === c) stack.pop();
-        if (stack.length === 0) { cutAt = i + 1; break; }
-      }
-    }
-    // 스택이 남아 있으면 → 잘린 것 → 마지막 완성된 필드까지만 추출 후 닫기
-    if (stack.length > 0) {
-      // 마지막 쉼표 이전까지 자르고 닫는 괄호 채우기
-      let recovered = partial.slice(0, cutAt).replace(/,\s*$/, "");
-      recovered += stack.reverse().join("");
-      try { return JSON.parse(recovered); } catch {}
-    }
-  }
-
-  console.error("[extractJSON 실패] 원본 텍스트 앞 300자:", text.slice(0, 300));
-  throw new SyntaxError(`JSON 파싱 실패. Claude 응답 시작: "${text.slice(0, 80)}..."`);
-}
-
 function markDone(el) { el.classList.add("done"); el.classList.remove("active"); }
 function showProgress(pct, msg) {
   progress.classList.add("visible");
