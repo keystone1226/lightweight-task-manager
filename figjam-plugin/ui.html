@@ -41,7 +41,7 @@
     /* ── Drop zone ────────────────────────────── */
     .dropzone {
       border: 2px dashed #c7d2fe; border-radius: 10px;
-      padding: 24px 12px; text-align: center; cursor: pointer;
+      padding: 20px 12px; text-align: center; cursor: pointer;
       background: #fafafa; transition: border-color .2s, background .2s;
       position: relative;
     }
@@ -51,13 +51,13 @@
       position: absolute; inset: 0; opacity: 0; cursor: pointer;
       width: 100%; height: 100%;
     }
-    .drop-icon  { font-size: 24px; margin-bottom: 6px; }
+    .drop-icon  { font-size: 22px; margin-bottom: 4px; }
     .drop-title { font-size: 12px; font-weight: 600; color: #374151; }
     .drop-hint  { font-size: 11px; color: #9ca3af; margin-top: 2px; }
 
     .file-badge {
-      display: none; align-items: center; gap: 8px; margin-top: 10px;
-      padding: 8px 10px; background: #f3f4f6; border-radius: 6px;
+      display: none; align-items: center; gap: 8px; margin-top: 8px;
+      padding: 7px 10px; background: #f3f4f6; border-radius: 6px;
     }
     .file-badge.visible { display: flex; }
     .file-badge-name { font-size: 12px; font-weight: 600; flex: 1;
@@ -68,19 +68,57 @@
     }
     .remove-btn:hover { color: #ef4444; }
 
-    /* ── Paste area ───────────────────────────── */
-    textarea {
-      width: 100%; min-height: 120px; resize: vertical;
-      padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
-      font-size: 12px; font-family: inherit; color: #111827;
-      line-height: 1.6;
+    /* ── Options section ──────────────────────── */
+    .options-section {
+      border: 1px solid #e5e7eb; border-radius: 8px;
+      margin-bottom: 10px; overflow: hidden;
     }
-    textarea:focus { outline: none; border-color: #6366f1; }
-    .char-count { text-align: right; font-size: 11px; color: #9ca3af; margin-top: 3px; }
+    .options-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; background: #f9fafb; cursor: pointer;
+      font-size: 12px; font-weight: 600; color: #374151;
+    }
+    .options-header:hover { background: #f3f4f6; }
+    .options-body { padding: 10px 12px; background: #fff; }
+    .option-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+    }
+    .option-row:last-child { margin-bottom: 0; }
+    .option-label { font-size: 11px; font-weight: 600; color: #6b7280; }
+
+    /* Segmented control */
+    .seg-group {
+      display: flex; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;
+    }
+    .seg-btn {
+      padding: 4px 9px; border: none; background: #f9fafb;
+      font-size: 11px; font-weight: 600; color: #9ca3af;
+      cursor: pointer; border-right: 1px solid #e5e7eb;
+    }
+    .seg-btn:last-child { border-right: none; }
+    .seg-btn.active { background: #eef2ff; color: #4f46e5; }
+
+    /* Toggle */
+    .toggle-wrap {
+      position: relative; display: inline-block; width: 36px; height: 20px;
+    }
+    .toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #d1d5db; transition: .2s; border-radius: 20px;
+    }
+    .toggle-slider:before {
+      position: absolute; content: ""; height: 14px; width: 14px;
+      left: 3px; bottom: 3px; background-color: white;
+      transition: .2s; border-radius: 50%;
+    }
+    .toggle-wrap input:checked + .toggle-slider { background-color: #6366f1; }
+    .toggle-wrap input:checked + .toggle-slider:before { transform: translateX(16px); }
 
     /* ── Preview ──────────────────────────────── */
     .preview {
-      display: none; margin-top: 12px;
+      display: none; margin-top: 10px;
       background: #fff; border: 1px solid #e5e7eb;
       border-radius: 8px; padding: 10px 12px;
     }
@@ -146,27 +184,71 @@
 
   <!-- 입력 탭 -->
   <div class="tabs">
-    <button class="tab-btn active" data-tab="file">📄 파일 업로드</button>
-    <button class="tab-btn"        data-tab="paste">📝 직접 입력</button>
+    <button class="tab-btn active" data-tab="txt">📄 녹취록 (.txt)</button>
+    <button class="tab-btn"        data-tab="json">📊 결과 불러오기 (.json)</button>
   </div>
 
-  <div class="tab-panel active" id="panel-file">
-    <div class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept=".txt,text/plain" />
+  <!-- TXT 탭 -->
+  <div class="tab-panel active" id="panel-txt">
+    <div class="dropzone" id="dropzoneTxt">
+      <input type="file" id="fileInputTxt" accept=".txt,text/plain" />
       <div class="drop-icon">📄</div>
       <div class="drop-title">클릭하거나 드래그해서 파일 선택</div>
       <div class="drop-hint">.txt 녹취록 파일</div>
     </div>
-    <div class="file-badge" id="fileBadge">
+    <div class="file-badge" id="fileBadgeTxt">
       <span>📄</span>
-      <span class="file-badge-name" id="fbName"></span>
-      <button class="remove-btn" id="removeBtn">✕</button>
+      <span class="file-badge-name" id="fbNameTxt"></span>
+      <button class="remove-btn" id="removeBtnTxt">✕</button>
     </div>
   </div>
 
-  <div class="tab-panel" id="panel-paste">
-    <textarea id="pasteArea" placeholder="녹취록을 여기에 붙여넣으세요."></textarea>
-    <div class="char-count" id="charCount">0자</div>
+  <!-- JSON 탭 -->
+  <div class="tab-panel" id="panel-json">
+    <div class="dropzone" id="dropzoneJson">
+      <input type="file" id="fileInputJson" accept=".json,application/json" />
+      <div class="drop-icon">📊</div>
+      <div class="drop-title">클릭하거나 드래그해서 파일 선택</div>
+      <div class="drop-hint">이전에 다운로드한 분석 결과 .json 파일</div>
+    </div>
+    <div class="file-badge" id="fileBadgeJson">
+      <span>📊</span>
+      <span class="file-badge-name" id="fbNameJson"></span>
+      <button class="remove-btn" id="removeBtnJson">✕</button>
+    </div>
+  </div>
+
+  <!-- 분석 옵션 (txt 탭에서만 표시) -->
+  <div class="options-section" id="optionsSection">
+    <div class="options-header" id="optionsHeader">
+      <span>⚙ 분석 옵션</span>
+      <span id="optionsArrow">▾</span>
+    </div>
+    <div class="options-body" id="optionsBody" style="display:none">
+      <div class="option-row">
+        <span class="option-label">클러스터링</span>
+        <div class="seg-group" id="clusteringGroup">
+          <button class="seg-btn" data-value="fine"   title="더 많은 항목, 세밀하게 분류">세밀</button>
+          <button class="seg-btn active" data-value="normal" title="기본 설정">보통</button>
+          <button class="seg-btn" data-value="coarse" title="핵심 항목만, 큰 단위로 묶기">광범위</button>
+        </div>
+      </div>
+      <div class="option-row">
+        <span class="option-label">플로우 분석</span>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="flowToggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="option-row">
+        <span class="option-label">집중 영역</span>
+        <div class="seg-group" id="focusGroup">
+          <button class="seg-btn active" data-value="balanced" title="질문·페인포인트·플로우 균형">균형</button>
+          <button class="seg-btn" data-value="pain"     title="페인포인트 위주로 상세 분석">페인포인트</button>
+          <button class="seg-btn" data-value="flow"     title="프로세스 흐름 위주로 분석">플로우</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="preview" id="preview">
@@ -189,14 +271,26 @@
 var transcriptText = "";
 var transcriptName = "";
 var resultData     = null;
+var activeTab      = "txt";
 
-var dropzone   = document.getElementById("dropzone");
-var fileInput  = document.getElementById("fileInput");
-var fileBadge  = document.getElementById("fileBadge");
-var fbName     = document.getElementById("fbName");
-var removeBtn  = document.getElementById("removeBtn");
-var pasteArea  = document.getElementById("pasteArea");
-var charCount  = document.getElementById("charCount");
+var dropzoneTxt   = document.getElementById("dropzoneTxt");
+var fileInputTxt  = document.getElementById("fileInputTxt");
+var fileBadgeTxt  = document.getElementById("fileBadgeTxt");
+var fbNameTxt     = document.getElementById("fbNameTxt");
+var removeBtnTxt  = document.getElementById("removeBtnTxt");
+
+var dropzoneJson  = document.getElementById("dropzoneJson");
+var fileInputJson = document.getElementById("fileInputJson");
+var fileBadgeJson = document.getElementById("fileBadgeJson");
+var fbNameJson    = document.getElementById("fbNameJson");
+var removeBtnJson = document.getElementById("removeBtnJson");
+
+var optionsSection = document.getElementById("optionsSection");
+var optionsHeader  = document.getElementById("optionsHeader");
+var optionsBody    = document.getElementById("optionsBody");
+var optionsArrow   = document.getElementById("optionsArrow");
+var flowToggle     = document.getElementById("flowToggle");
+
 var preview    = document.getElementById("preview");
 var prevTitle  = document.getElementById("previewTitle");
 var badgeQ     = document.getElementById("badgeQ");
@@ -211,27 +305,52 @@ var cancelBtn  = document.getElementById("cancelBtn");
 // ── 탭 전환 ──────────────────────────────────
 document.querySelectorAll(".tab-btn").forEach(function(btn) {
   btn.addEventListener("click", function() {
+    var tab = btn.dataset.tab;
+    if (tab === activeTab) return;
+    activeTab = tab;
+
     document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
     document.querySelectorAll(".tab-panel").forEach(function(p) { p.classList.remove("active"); });
     btn.classList.add("active");
-    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+    document.getElementById("panel-" + tab).classList.add("active");
+
+    // 상태 초기화
     transcriptText = "";
     transcriptName = "";
-    updateAnalyzeBtn();
+    resultData     = null;
+    fileBadgeTxt.classList.remove("visible");
+    dropzoneTxt.classList.remove("loaded");
+    fileInputTxt.value = "";
+    fileBadgeJson.classList.remove("visible");
+    dropzoneJson.classList.remove("loaded");
+    fileInputJson.value = "";
+    preview.classList.remove("visible");
+    clearStatus();
+    createBtn.style.display  = "none";
+    downloadBtn.style.display = "none";
+
+    if (tab === "txt") {
+      analyzeBtn.style.display   = "";
+      optionsSection.style.display = "";
+      updateAnalyzeBtn();
+    } else {
+      analyzeBtn.style.display   = "none";
+      optionsSection.style.display = "none";
+    }
   });
 });
 
-// ── 파일 업로드 ───────────────────────────────
-dropzone.addEventListener("dragover",  function(e) { e.preventDefault(); dropzone.classList.add("hover"); });
-dropzone.addEventListener("dragleave", function()  { dropzone.classList.remove("hover"); });
-dropzone.addEventListener("drop", function(e) {
+// ── TXT 파일 업로드 ───────────────────────────
+dropzoneTxt.addEventListener("dragover",  function(e) { e.preventDefault(); dropzoneTxt.classList.add("hover"); });
+dropzoneTxt.addEventListener("dragleave", function()  { dropzoneTxt.classList.remove("hover"); });
+dropzoneTxt.addEventListener("drop", function(e) {
   e.preventDefault();
-  dropzone.classList.remove("hover");
-  loadFile(e.dataTransfer.files[0]);
+  dropzoneTxt.classList.remove("hover");
+  loadTxtFile(e.dataTransfer.files[0]);
 });
-fileInput.addEventListener("change", function() { loadFile(fileInput.files[0]); });
+fileInputTxt.addEventListener("change", function() { loadTxtFile(fileInputTxt.files[0]); });
 
-function loadFile(file) {
+function loadTxtFile(file) {
   if (!file) return;
   var ext = file.name.split(".").pop().toLowerCase();
   if (ext !== "txt") { showStatus("error", "텍스트 파일(.txt)만 지원됩니다."); return; }
@@ -239,32 +358,101 @@ function loadFile(file) {
   reader.onload = function(e) {
     transcriptText = e.target.result;
     transcriptName = file.name;
-    fbName.textContent = file.name;
-    fileBadge.classList.add("visible");
-    dropzone.classList.add("loaded");
+    fbNameTxt.textContent = file.name;
+    fileBadgeTxt.classList.add("visible");
+    dropzoneTxt.classList.add("loaded");
     clearStatus();
     updateAnalyzeBtn();
   };
   reader.readAsText(file, "utf-8");
 }
 
-removeBtn.addEventListener("click", function(e) {
+removeBtnTxt.addEventListener("click", function(e) {
   e.stopPropagation();
   transcriptText = ""; transcriptName = "";
-  fileBadge.classList.remove("visible");
-  dropzone.classList.remove("loaded");
-  fileInput.value = "";
+  fileBadgeTxt.classList.remove("visible");
+  dropzoneTxt.classList.remove("loaded");
+  fileInputTxt.value = "";
   updateAnalyzeBtn();
 });
 
-// ── 직접 입력 ─────────────────────────────────
-pasteArea.addEventListener("input", function() {
-  var text = pasteArea.value.trim();
-  charCount.textContent = text.length.toLocaleString() + "자";
-  transcriptText = text;
-  transcriptName = "직접입력.txt";
-  updateAnalyzeBtn();
+// ── JSON 파일 업로드 ──────────────────────────
+dropzoneJson.addEventListener("dragover",  function(e) { e.preventDefault(); dropzoneJson.classList.add("hover"); });
+dropzoneJson.addEventListener("dragleave", function()  { dropzoneJson.classList.remove("hover"); });
+dropzoneJson.addEventListener("drop", function(e) {
+  e.preventDefault();
+  dropzoneJson.classList.remove("hover");
+  loadJsonFile(e.dataTransfer.files[0]);
 });
+fileInputJson.addEventListener("change", function() { loadJsonFile(fileInputJson.files[0]); });
+
+function loadJsonFile(file) {
+  if (!file) return;
+  var ext = file.name.split(".").pop().toLowerCase();
+  if (ext !== "json") { showStatus("error", "JSON 파일(.json)만 지원됩니다."); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      resultData = data;
+      fbNameJson.textContent = file.name;
+      fileBadgeJson.classList.add("visible");
+      dropzoneJson.classList.add("loaded");
+      showPreview(data);
+      showStatus("success", "✅ 분석 결과 로드 완료 — 바로 보드를 생성할 수 있습니다.");
+      createBtn.style.display   = "";
+      downloadBtn.style.display = "";
+      createBtn.disabled = false;
+    } catch(err) {
+      showStatus("error", "❌ JSON 파싱 오류: " + err.message);
+    }
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+removeBtnJson.addEventListener("click", function(e) {
+  e.stopPropagation();
+  resultData = null;
+  fileBadgeJson.classList.remove("visible");
+  dropzoneJson.classList.remove("loaded");
+  fileInputJson.value = "";
+  preview.classList.remove("visible");
+  clearStatus();
+  createBtn.style.display   = "none";
+  downloadBtn.style.display = "none";
+});
+
+// ── 분석 옵션 (접기/펼치기) ───────────────────
+optionsHeader.addEventListener("click", function() {
+  var isOpen = optionsBody.style.display !== "none";
+  optionsBody.style.display = isOpen ? "none" : "";
+  optionsArrow.textContent  = isOpen ? "▾" : "▴";
+});
+
+// 세그먼트 버튼 토글
+document.querySelectorAll("#clusteringGroup .seg-btn").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    document.querySelectorAll("#clusteringGroup .seg-btn").forEach(function(b) { b.classList.remove("active"); });
+    btn.classList.add("active");
+  });
+});
+
+document.querySelectorAll("#focusGroup .seg-btn").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    document.querySelectorAll("#focusGroup .seg-btn").forEach(function(b) { b.classList.remove("active"); });
+    btn.classList.add("active");
+  });
+});
+
+function getOptions() {
+  var clusterBtn = document.querySelector("#clusteringGroup .seg-btn.active");
+  var focusBtn   = document.querySelector("#focusGroup .seg-btn.active");
+  return {
+    clustering:    clusterBtn ? clusterBtn.dataset.value : "normal",
+    include_flows: flowToggle.checked,
+    focus:         focusBtn ? focusBtn.dataset.value : "balanced"
+  };
+}
 
 function updateAnalyzeBtn() {
   analyzeBtn.disabled = !transcriptText;
@@ -276,14 +464,14 @@ analyzeBtn.addEventListener("click", function() {
   if (!transcriptText) return;
   analyzeBtn.disabled = true;
 
-  var wordCount = transcriptText.split(/\s+/).filter(Boolean).length;
+  var wordCount  = transcriptText.split(/\s+/).filter(Boolean).length;
   var chunkCount = Math.ceil(wordCount / 4000);
   showStatus("info", '<span class="spinner"></span>&nbsp; 분석 중… (' + wordCount.toLocaleString() + '단어' + (chunkCount > 1 ? ', ' + chunkCount + '개 청크' : '') + ')');
 
   fetch("http://localhost:5500/analyze", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ transcript: transcriptText, source_name: transcriptName })
+    body: JSON.stringify({ transcript: transcriptText, source_name: transcriptName, options: getOptions() })
   })
   .then(function(resp) {
     if (!resp.ok) {
@@ -295,8 +483,8 @@ analyzeBtn.addEventListener("click", function() {
     resultData = data;
     showPreview(data);
     showStatus("success", "✅ 분석 완료!");
-    analyzeBtn.style.display = "none";
-    createBtn.style.display  = "";
+    analyzeBtn.style.display  = "none";
+    createBtn.style.display   = "";
     downloadBtn.style.display = "";
     createBtn.disabled = false;
   })
@@ -308,9 +496,9 @@ analyzeBtn.addEventListener("click", function() {
 
 function showPreview(data) {
   prevTitle.textContent = data.interview_title || "(제목 없음)";
-  badgeQ.textContent  = "💬 질문 "      + (data.questions   || []).length + "개";
+  badgeQ.textContent  = "💬 질문 "       + (data.questions   || []).length + "개";
   badgePP.textContent = "⚠️ 페인포인트 " + (data.pain_points || []).length + "개";
-  badgeFL.textContent = "🔀 플로우 "     + (data.flows       || []).length + "개";
+  badgeFL.textContent = "🔀 플로우 "      + (data.flows       || []).length + "개";
   preview.classList.add("visible");
 }
 
@@ -344,7 +532,7 @@ window.onmessage = function(e) {
   var msg = e.data.pluginMessage;
   if (!msg) return;
   if (msg.type === "STATUS") showStatus("info", '<span class="spinner"></span>&nbsp; ' + msg.message);
-  if (msg.type === "DONE")   showStatus("success", "✅ FigJam 보드 생성 완료!");
+  if (msg.type === "DONE")   { showStatus("success", "✅ FigJam 보드 생성 완료!"); createBtn.disabled = false; }
   if (msg.type === "ERROR")  { showStatus("error", "❌ 오류: " + msg.message); createBtn.disabled = false; }
 };
 

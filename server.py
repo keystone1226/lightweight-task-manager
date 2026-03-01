@@ -25,9 +25,56 @@ SYSTEM_PROMPT = """You are a senior UX researcher. Extract structured informatio
 Always respond with valid JSON ONLY — no markdown fences, no preamble, no explanation.
 The JSON must strictly follow the schema provided by the user."""
 
-def build_user_message(transcript: str) -> str:
+def build_user_message(transcript: str, options: dict = None) -> str:
+    if options is None:
+        options = {}
+
+    clustering    = options.get("clustering", "normal")
+    include_flows = options.get("include_flows", True)
+    focus         = options.get("focus", "balanced")
+
+    # Max item counts by clustering level
+    max_q  = {"fine": 12, "normal": 8, "coarse": 5}.get(clustering, 8)
+    max_pp = {"fine": 12, "normal": 8, "coarse": 5}.get(clustering, 8)
+    max_nd = {"fine": 12, "normal": 8, "coarse": 6}.get(clustering, 8)
+
+    clustering_hint = {
+        "fine":   "유사한 항목도 각각 별도 항목으로 세밀하게 분리 추출",
+        "normal": "적절한 수준으로 유사 항목 클러스터링",
+        "coarse": "유사한 항목을 하나로 묶어 핵심 위주로만 추출",
+    }.get(clustering, "적절한 수준으로 유사 항목 클러스터링")
+
+    if focus == "pain":
+        focus_hint = "페인포인트 분석에 집중. 질문은 핵심 4개 이하로 최소화. 플로우는 없으면 생략."
+    elif focus == "flow":
+        focus_hint = "사용자 행동 플로우 다이어그램에 집중. 프로세스를 상세히 표현. 질문·페인포인트는 최소화."
+    else:
+        focus_hint = "질문·페인포인트·플로우를 균형 있게 분석."
+
+    if include_flows:
+        flows_schema = f"""  "flows": [
+    {{
+      "id": "flow_1",
+      "title": "플로우 제목",
+      "nodes": [
+        {{ "id": "n1", "label": "단계명 (8자 이내)", "type": "Start|Process|Decision|End", "description": "" }}
+      ],
+      "edges": [
+        {{ "id": "e1", "source": "n1", "target": "n2", "label": "" }}
+      ]
+    }}
+  ]"""
+        flows_rule = f"- flows: 명확한 프로세스가 있을 경우만 포함 (없으면 []), 노드 최대 {max_nd}개"
+    else:
+        flows_schema = '  "flows": []'
+        flows_rule   = "- flows: 항상 [] (플로우 분석 제외)"
+
     return f"""아래 인터뷰 녹취록을 분석해서 다음 JSON 스키마에 맞춰 정리해줘.
 JSON만 출력하고, 다른 텍스트(마크다운 포함)는 절대 출력하지 마.
+
+=== 분석 설정 ===
+- 클러스터링: {clustering_hint}
+- 집중 영역: {focus_hint}
 
 === JSON 스키마 ===
 {{
@@ -44,24 +91,13 @@ JSON만 출력하고, 다른 텍스트(마크다운 포함)는 절대 출력하�
       "quote": "녹취록 직접 인용 (있을 경우만)"
     }}
   ],
-  "flows": [
-    {{
-      "id": "flow_1",
-      "title": "플로우 제목",
-      "nodes": [
-        {{ "id": "n1", "label": "단계명 (8자 이내)", "type": "Start|Process|Decision|End", "description": "" }}
-      ],
-      "edges": [
-        {{ "id": "e1", "source": "n1", "target": "n2", "label": "" }}
-      ]
-    }}
-  ]
+{flows_schema}
 }}
 
 === 규칙 ===
-- questions: 핵심 질문만 (중복 제외, 최대 8개)
-- pain_points: 불편함·문제점·니즈 (최대 8개), description은 1~2문장으로 간결하게
-- flows: 명확한 프로세스가 있을 경우만 (없으면 []), 노드 최대 8개
+- questions: 핵심 질문만 (중복 제외, 최대 {max_q}개), {clustering_hint}
+- pain_points: 불편함·문제점·니즈 (최대 {max_pp}개), description은 1~2문장으로 간결하게, {clustering_hint}
+{flows_rule}
 - 이 녹취록이 전체의 일부일 수 있음. 보이는 내용만 분석할 것
 
 === 인터뷰 녹취록 ===
@@ -70,13 +106,13 @@ JSON만 출력하고, 다른 텍스트(마크다운 포함)는 절대 출력하�
 ---"""
 
 
-def call_claude(transcript: str) -> dict:
+def call_claude(transcript: str, options: dict = None) -> dict:
     """Claude API 단일 호출, 파싱된 dict 반환"""
     payload = json.dumps({
         "model":      MODEL,
         "max_tokens": MAX_OUT,
         "system":     SYSTEM_PROMPT,
-        "messages":   [{"role": "user", "content": build_user_message(transcript)}],
+        "messages":   [{"role": "user", "content": build_user_message(transcript, options)}],
     }).encode()
 
     req = urllib.request.Request(
@@ -232,6 +268,7 @@ class AnalyzerHandler(SimpleHTTPRequestHandler):
 
         transcript  = body.get("transcript", "")
         source_name = body.get("source_name", "인터뷰")
+        options     = body.get("options") or {}
 
         if not transcript.strip():
             self._respond(400, {"error": "녹취록이 비어있습니다."})
@@ -241,11 +278,13 @@ class AnalyzerHandler(SimpleHTTPRequestHandler):
             chunks = split_transcript(transcript)
             total  = len(chunks)
             print(f"[analyze] 청크 {total}개로 분할 ({len(transcript.split())}단어)")
+            print(f"[analyze] 옵션: clustering={options.get('clustering','normal')}, "
+                  f"flows={options.get('include_flows', True)}, focus={options.get('focus','balanced')}")
 
             parts = []
             for idx, chunk in enumerate(chunks):
                 print(f"[analyze] 청크 {idx+1}/{total} 분석 중...")
-                result = call_claude(chunk)
+                result = call_claude(chunk, options)
                 parts.append(result)
 
             merged = merge_results(parts)

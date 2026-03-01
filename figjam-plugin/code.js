@@ -6,7 +6,7 @@
 //   • Section C+: Flows (shapes + connectors, one per flow)
 // ──────────────────────────────────────────────────────────────
 
-figma.showUI(__html__, { width: 440, height: 640, title: "Interview Insights" });
+figma.showUI(__html__, { width: 440, height: 700, title: "Interview Insights" });
 
 figma.ui.onmessage = async (msg) => {
   if (msg.type === "CREATE_BOARD") {
