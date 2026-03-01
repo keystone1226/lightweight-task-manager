@@ -517,7 +517,7 @@ analyseBtn.addEventListener("click", async () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         model:      "claude-sonnet-4-6",
-        max_tokens: 4096,
+        max_tokens: 8192,
         system:     SYSTEM_PROMPT,
         messages:   [{ role: "user", content: buildPrompt(transcriptText) }],
       }),
@@ -532,6 +532,13 @@ analyseBtn.addEventListener("click", async () => {
 
     const body    = await resp.json();
     const rawText = body.content?.[0]?.text || "";
+
+    // 디버그: 브라우저 콘솔에서 실제 응답 확인 (F12 → Console)
+    console.log("[Claude 원본 응답]", rawText.slice(0, 500));
+
+    if (!rawText) {
+      throw new Error(`Claude 응답이 비어있습니다. stop_reason: ${body.stop_reason}, 응답 구조: ${JSON.stringify(Object.keys(body))}`);
+    }
 
     showProgress(90, "JSON 파싱 중…");
 
@@ -626,7 +633,39 @@ function extractJSON(text) {
     try { return JSON.parse(fixed); } catch {}
   }
 
-  throw new SyntaxError("응답에서 유효한 JSON을 찾을 수 없습니다. 다시 시도해 주세요.");
+  // 전략 5: max_tokens 초과로 잘린 JSON 복구
+  // { ... 까지만 있고 닫는 }가 없는 경우, 열린 괄호를 닫아서 파싱 시도
+  const start = text.indexOf("{");
+  if (start !== -1) {
+    const partial = text.slice(start);
+    const closes = { "{": "}", "[": "]" };
+    const stack = [];
+    let cutAt = partial.length;
+    let inString = false, escape = false;
+
+    for (let i = 0; i < partial.length; i++) {
+      const c = partial[i];
+      if (escape) { escape = false; continue; }
+      if (c === "\\" && inString) { escape = true; continue; }
+      if (c === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (c === "{" || c === "[") stack.push(closes[c]);
+      else if (c === "}" || c === "]") {
+        if (stack.length && stack[stack.length - 1] === c) stack.pop();
+        if (stack.length === 0) { cutAt = i + 1; break; }
+      }
+    }
+    // 스택이 남아 있으면 → 잘린 것 → 마지막 완성된 필드까지만 추출 후 닫기
+    if (stack.length > 0) {
+      // 마지막 쉼표 이전까지 자르고 닫는 괄호 채우기
+      let recovered = partial.slice(0, cutAt).replace(/,\s*$/, "");
+      recovered += stack.reverse().join("");
+      try { return JSON.parse(recovered); } catch {}
+    }
+  }
+
+  console.error("[extractJSON 실패] 원본 텍스트 앞 300자:", text.slice(0, 300));
+  throw new SyntaxError(`JSON 파싱 실패. Claude 응답 시작: "${text.slice(0, 80)}..."`);
 }
 
 function markDone(el) { el.classList.add("done"); el.classList.remove("active"); }
