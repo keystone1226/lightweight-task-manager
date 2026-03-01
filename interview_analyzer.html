@@ -535,8 +535,7 @@ analyseBtn.addEventListener("click", async () => {
 
     showProgress(90, "JSON 파싱 중…");
 
-    const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-    const parsed  = JSON.parse(cleaned);
+    const parsed = extractJSON(rawText);
 
     resultJSON = {
       schema_version:  "1.0",
@@ -601,6 +600,35 @@ resetBtn.addEventListener("click", () => {
 // ══════════════════════════════════════════════════════════════
 // Helpers
 // ══════════════════════════════════════════════════════════════
+
+// Claude 응답에서 JSON을 추출하는 강건한 파서
+// 마크다운 펜스, 앞뒤 텍스트, unquoted key 등 대응
+function extractJSON(text) {
+  // 전략 1: 그대로 파싱 (이상적인 케이스)
+  try { return JSON.parse(text.trim()); } catch {}
+
+  // 전략 2: 마크다운 코드 블록 제거 후 파싱
+  const stripped = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+  try { return JSON.parse(stripped); } catch {}
+
+  // 전략 3: 가장 바깥쪽 {...} 추출 후 파싱
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    try { return JSON.parse(match[0]); } catch {}
+  }
+
+  // 전략 4: 따옴표 없는 키를 수정 후 재시도 (unquoted property name)
+  if (match) {
+    const fixed = match[0].replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3');
+    try { return JSON.parse(fixed); } catch {}
+  }
+
+  throw new SyntaxError("응답에서 유효한 JSON을 찾을 수 없습니다. 다시 시도해 주세요.");
+}
+
 function markDone(el) { el.classList.add("done"); el.classList.remove("active"); }
 function showProgress(pct, msg) {
   progress.classList.add("visible");
