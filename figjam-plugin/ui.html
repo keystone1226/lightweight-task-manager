@@ -173,9 +173,31 @@
       border-radius: 50%; animation: spin .7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Server URL bar ───────────────────────── */
+    .server-bar {
+      display: flex; align-items: center; gap: 6px;
+      background: #f9fafb; border: 1px solid #e5e7eb;
+      border-radius: 8px; padding: 7px 10px; margin-bottom: 12px;
+    }
+    .server-bar label {
+      font-size: 11px; font-weight: 600; color: #6b7280;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .server-bar input {
+      flex: 1; border: none; background: transparent;
+      font-size: 12px; color: #374151; outline: none;
+      min-width: 0;
+    }
+    .server-bar input:focus { color: #4f46e5; }
   </style>
 </head>
 <body>
+  <div class="server-bar">
+    <label>🖥 서버</label>
+    <input type="text" id="serverUrl" placeholder="http://localhost:5500" spellcheck="false" />
+  </div>
+
   <div class="logo">
     <div class="logo-icon">🎤</div>
     <h1>Interview Insights</h1>
@@ -272,6 +294,18 @@ var transcriptText = "";
 var transcriptName = "";
 var resultData     = null;
 var activeTab      = "txt";
+
+// ── 서버 URL 설정 ─────────────────────────────
+var SERVER_KEY = "interview_insights_server_url";
+var serverUrlEl = document.getElementById("serverUrl");
+serverUrlEl.value = localStorage.getItem(SERVER_KEY) || "http://localhost:5500";
+serverUrlEl.addEventListener("change", function() {
+  localStorage.setItem(SERVER_KEY, serverUrlEl.value.trim());
+});
+
+function getServerUrl() {
+  return serverUrlEl.value.trim().replace(/\/$/, "");
+}
 
 var dropzoneTxt   = document.getElementById("dropzoneTxt");
 var fileInputTxt  = document.getElementById("fileInputTxt");
@@ -468,7 +502,7 @@ analyzeBtn.addEventListener("click", function() {
   var chunkCount = Math.ceil(wordCount / 4000);
   showStatus("info", '<span class="spinner"></span>&nbsp; 분석 중… (' + wordCount.toLocaleString() + '단어' + (chunkCount > 1 ? ', ' + chunkCount + '개 청크' : '') + ')');
 
-  fetch("http://localhost:5500/analyze", {
+  fetch(getServerUrl() + "/analyze", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ transcript: transcriptText, source_name: transcriptName, options: getOptions() })

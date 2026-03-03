@@ -336,9 +336,18 @@ if __name__ == "__main__":
     else:
         print(f"✓  API 키 로드됨 (길이: {len(API_KEY)}자)")
 
+    # 로컬 IP 확인
+    try:
+        import socket
+        local_ip = socket.gethostbyname(socket.gethostname())
+    except Exception:
+        local_ip = "확인 불가 (ipconfig/ifconfig 로 직접 확인)"
+
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    server = HTTPServer(("localhost", PORT), AnalyzerHandler)
-    print(f"✓  서버 시작: http://localhost:{PORT}")
+    server = HTTPServer(("0.0.0.0", PORT), AnalyzerHandler)
+    print(f"✓  서버 시작 (모든 네트워크 인터페이스)")
+    print(f"   내 PC:    http://localhost:{PORT}")
+    print(f"   팀원 접속: http://{local_ip}:{PORT}  ← 이 주소를 FigJam 플러그인에 입력")
     print(f"   청크 크기: {CHUNK_WORDS}단어 / 청크")
     print("   종료: Ctrl+C\n")
     server.serve_forever()
