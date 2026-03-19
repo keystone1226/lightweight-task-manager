@@ -163,6 +163,27 @@ class CommentRead(CommentBase):
     author: Optional[UserRead] = None
 
 
+# ── TaskHistory ───────────────────────────────────
+
+
+class TaskHistory(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    task_id: int = Field(foreign_key="task.id")
+    field: str = Field(max_length=50)        # e.g. "status", "assignee_id"
+    old_value: Optional[str] = Field(default=None)
+    new_value: Optional[str] = Field(default=None)
+    changed_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TaskHistoryRead(SQLModel):
+    id: int
+    task_id: int
+    field: str
+    old_value: Optional[str]
+    new_value: Optional[str]
+    changed_at: datetime
+
+
 # ── Notification ──────────────────────────────────────
 
 

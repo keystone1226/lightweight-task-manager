@@ -16,6 +16,7 @@ from app.models import (
     NotificationType,
     Task,
     TaskCreate,
+    TaskHistory,
     TaskRead,
     TaskStatusUpdate,
     TaskUpdate,
@@ -104,6 +105,15 @@ def update_task(task_id: int, data: TaskUpdate, session: Session = Depends(get_s
         setattr(task, key, value)
     task.updated_at = datetime.utcnow()
 
+    # History logging
+    for field in ("status", "assignee_id", "priority"):
+        if field not in update_data:
+            continue
+        old_val = str(old_status) if field == "status" else str(old_assignee) if field == "assignee_id" else None
+        new_val = str(update_data[field]) if update_data[field] is not None else None
+        if old_val != new_val:
+            session.add(TaskHistory(task_id=task.id, field=field, old_value=old_val, new_value=new_val))
+
     # Notifications
     if "assignee_id" in update_data and update_data["assignee_id"] != old_assignee:
         _notify_assignment(session, task)
@@ -130,6 +140,7 @@ def update_task_status(
     task.updated_at = datetime.utcnow()
 
     if old_status != data.status:
+        session.add(TaskHistory(task_id=task.id, field="status", old_value=old_status, new_value=data.status))
         _notify_status_change(session, task, old_status, data.status)
 
     session.add(task)

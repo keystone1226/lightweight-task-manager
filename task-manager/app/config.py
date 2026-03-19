@@ -15,6 +15,11 @@ SMTP_FROM = os.getenv("TASK_SMTP_FROM", "taskmanager@local")
 SMTP_USER = os.getenv("TASK_SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("TASK_SMTP_PASSWORD", "")
 
+# LLM settings (for weekly report generation)
+LLM_API_URL = os.getenv("TASK_LLM_URL", "")          # e.g. https://llm.company.internal/v1/chat/completions
+LLM_API_TOKEN = os.getenv("TASK_LLM_TOKEN", "")      # Bearer token
+LLM_MODEL = os.getenv("TASK_LLM_MODEL", "gpt-4o")    # model name
+
 # Server settings
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000

@@ -562,6 +562,144 @@ function timeAgo(dateStr) {
   return `${days}d ago`;
 }
 
+/* ── Weekly Report Sidebar ──────────────────────── */
+let reportWeeklyTasks = [];
+
+document.getElementById('reportBtn').addEventListener('click', openReportSidebar);
+document.getElementById('reportCloseBtn').addEventListener('click', closeReportSidebar);
+document.getElementById('reportOverlay').addEventListener('click', closeReportSidebar);
+
+function openReportSidebar() {
+  document.getElementById('reportSidebar').classList.add('active');
+  document.getElementById('reportOverlay').classList.add('active');
+  populateWeekSelect();
+  loadReportTasks();
+}
+
+function closeReportSidebar() {
+  document.getElementById('reportSidebar').classList.remove('active');
+  document.getElementById('reportOverlay').classList.remove('active');
+}
+
+function populateWeekSelect() {
+  const sel = document.getElementById('reportWeekSelect');
+  if (sel.options.length > 0) return;
+  const today = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i * 7);
+    const year = d.getFullYear();
+    const week = getISOWeek(d);
+    const monday = getMondayOfWeek(year, week);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const label = i === 0 ? `이번주 (${fmtDate(monday)} ~ ${fmtDate(sunday)})` : `${fmtDate(monday)} ~ ${fmtDate(sunday)}`;
+    const opt = document.createElement('option');
+    opt.value = `${year}-${week}`;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', loadReportTasks);
+}
+
+async function loadReportTasks() {
+  const [year, week] = document.getElementById('reportWeekSelect').value.split('-').map(Number);
+  document.getElementById('reportTaskList').innerHTML = '<div class="report-loading">불러오는 중...</div>';
+  document.getElementById('reportTaskCount').textContent = '';
+  document.getElementById('reportResultWrap').style.display = 'none';
+  document.getElementById('reportRerunBtn').style.display = 'none';
+
+  try {
+    const data = await api(`/api/report/weekly-tasks?year=${year}&week=${week}`);
+    reportWeeklyTasks = data.tasks;
+    renderReportTaskList(data.tasks);
+    document.getElementById('reportTaskCount').textContent = `${data.tasks.length}개`;
+  } catch {
+    document.getElementById('reportTaskList').innerHTML = '<div class="report-loading">불러오기 실패</div>';
+  }
+}
+
+function renderReportTaskList(tasks) {
+  const list = document.getElementById('reportTaskList');
+  if (!tasks.length) {
+    list.innerHTML = '<div class="report-loading">이번주 변경된 태스크가 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = tasks.map(t => {
+    const changes = t.changes.map(c => `${c.old_value} → ${c.new_value}`).join(', ') || '';
+    const meta = [t.assignee, changes].filter(Boolean).join(' · ');
+    return `
+      <label class="report-task-item">
+        <input type="checkbox" class="report-task-checkbox" data-id="${t.id}" checked>
+        <div class="report-task-info">
+          <span class="report-task-title">${escHtml(t.title)}</span>
+          <div class="report-task-meta">
+            <span class="report-status-badge">${t.status.replace('_', ' ')}</span>
+            ${meta ? `<span>${escHtml(meta)}</span>` : ''}
+          </div>
+        </div>
+      </label>
+    `;
+  }).join('');
+}
+
+document.getElementById('reportGenerateBtn').addEventListener('click', generateReport);
+document.getElementById('reportRerunBtn').addEventListener('click', generateReport);
+
+async function generateReport() {
+  const [year, week] = document.getElementById('reportWeekSelect').value.split('-').map(Number);
+  const checkedIds = [...document.querySelectorAll('.report-task-checkbox:checked')].map(el => parseInt(el.dataset.id));
+  const example = document.getElementById('reportExample').value.trim();
+
+  if (!checkedIds.length) { alert('태스크를 하나 이상 선택해주세요.'); return; }
+  if (!example) { alert('과거 보고서 예시를 붙여넣어주세요.'); return; }
+
+  const btn = document.getElementById('reportGenerateBtn');
+  btn.textContent = '생성 중...';
+  btn.disabled = true;
+
+  try {
+    const data = await api('/api/report/generate', {
+      method: 'POST',
+      body: JSON.stringify({ year, week, task_ids: checkedIds, example_report: example }),
+    });
+    document.getElementById('reportResult').value = data.report;
+    document.getElementById('reportResultWrap').style.display = 'flex';
+    document.getElementById('reportRerunBtn').style.display = 'block';
+  } catch (e) {
+    alert('생성 실패: ' + e.message);
+  } finally {
+    btn.textContent = '보고서 생성';
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('reportCopyBtn').addEventListener('click', () => {
+  const text = document.getElementById('reportResult').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('reportCopyBtn');
+    btn.textContent = '복사됨!';
+    setTimeout(() => btn.textContent = '복사', 1500);
+  });
+});
+
+function getISOWeek(d) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+function getMondayOfWeek(year, week) {
+  const jan4 = new Date(year, 0, 4);
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - jan4.getDay() + 1 + (week - 1) * 7);
+  return monday;
+}
+
+function fmtDate(d) {
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
 /* ── Close panels on outside click ──────────────── */
 document.addEventListener('click', e => {
   const bell = document.getElementById('notifBell');
