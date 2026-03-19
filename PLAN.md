@@ -8,6 +8,7 @@
 - **Backend**: Python + FastAPI (단일 파일로 시작, 의존성 최소화)
 - **Frontend**: 순수 HTML/CSS/JS (별도 빌드 불필요, Jinja2 템플릿 또는 정적 파일)
 - **Database**: SQLite (파일 기반, 설치 불필요)
+- **Migration**: Alembic (스키마 버전 관리 + 자동 마이그레이션)
 - **패키지 관리**: uv + pyproject.toml
 
 > 외부망 단절 환경을 고려하여 CDN 의존 없이 모든 에셋을 로컬에 포함
@@ -27,6 +28,36 @@
 - [ ] 간단한 검색/필터
 - [ ] 데이터 내보내기 (JSON/CSV)
 
+## DB 마이그레이션 전략
+
+30명 규모의 팀이 지속적으로 사용하는 환경에서, 앱 업데이트 시 기존 데이터가 안전하게 보존되어야 함.
+
+### 핵심 원칙
+- **Alembic**으로 스키마 버전 관리 — 모든 DB 변경은 마이그레이션 파일로 추적
+- **서버 시작 시 자동 마이그레이션** — 관리자가 별도 명령을 실행할 필요 없음
+- **하위 호환성** — 새 컬럼 추가 시 반드시 default 값 지정, 기존 데이터 유지
+
+### 마이그레이션 흐름
+```
+[앱 업데이트] → [서버 시작] → [Alembic 자동 실행] → [DB 스키마 최신화] → [서비스 정상 운영]
+```
+
+### 구체적 동작
+1. **서버 시작 시**: `alembic upgrade head`가 자동 실행됨
+2. **신규 설치**: 빈 DB에 최신 스키마가 한번에 생성됨
+3. **기존 운영 중 업데이트**: 누적된 마이그레이션이 순서대로 적용됨
+4. **롤백 필요 시**: `alembic downgrade -1`로 이전 버전으로 복원 가능
+
+### 마이그레이션 작성 규칙
+- 새 컬럼 추가 시 `server_default` 필수 (기존 행에 NULL 방지)
+- 컬럼 삭제 대신 deprecate 후 다음 버전에서 제거 (2단계 삭제)
+- 데이터 변환이 필요한 경우 `op.execute()`로 data migration 포함
+- 각 마이그레이션 파일에 변경 사유 주석 작성
+
+### 백업
+- 서버 시작 시 마이그레이션 실행 전 `tasks.db`를 `tasks.db.bak.{timestamp}`로 자동 백업
+- 마이그레이션 실패 시 백업 파일에서 복원 안내 메시지 출력
+
 ## 디렉토리 구조
 
 ```
@@ -34,13 +65,17 @@ task-manager/
 ├── app/
 │   ├── main.py           # FastAPI 앱 엔트리포인트 + IP 바인딩
 │   ├── models.py          # SQLModel 데이터 모델
-│   ├── database.py        # DB 연결 설정
+│   ├── database.py        # DB 연결 설정 + 자동 마이그레이션
 │   ├── routers/
 │   │   └── tasks.py       # 태스크 API 라우터
 │   └── static/
 │       ├── index.html     # SPA 메인 페이지 (칸반 보드)
 │       ├── style.css      # 스타일
 │       └── app.js         # 프론트엔드 로직
+├── alembic/
+│   ├── env.py             # Alembic 환경 설정
+│   └── versions/          # 마이그레이션 파일들
+├── alembic.ini            # Alembic 설정
 ├── pyproject.toml         # 프로젝트 설정 + 의존성
 ├── README.md              # 사용법
 └── tasks.db               # SQLite DB (자동 생성)
@@ -100,7 +135,9 @@ uv run python -m app.main --host 192.168.1.100 --port 8000
 ## 구현 순서
 1. 프로젝트 초기화 (pyproject.toml, 디렉토리 구조)
 2. 데이터 모델 + DB 설정
-3. API 라우터 구현
-4. 프론트엔드 칸반 보드 UI
-5. IP 자동 감지 + 서버 실행 로직
-6. README 작성
+3. **Alembic 설정 + 초기 마이그레이션**
+4. **서버 시작 시 자동 마이그레이션 + DB 백업 로직**
+5. API 라우터 구현
+6. 프론트엔드 칸반 보드 UI
+7. IP 자동 감지 + 서버 실행 로직
+8. README 작성 (마이그레이션/업데이트 가이드 포함)
