@@ -1,0 +1,191 @@
+"""Task CRUD routes."""
+
+import re
+import uuid
+from datetime import datetime
+from pathlib import Path
+
+import aiofiles
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlmodel import Session, select
+
+from app.config import UPLOAD_DIR
+from app.database import get_session
+from app.models import (
+    Notification,
+    NotificationType,
+    Task,
+    TaskCreate,
+    TaskRead,
+    TaskStatusUpdate,
+    TaskUpdate,
+    User,
+)
+
+router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+
+def _notify_assignment(session: Session, task: Task, changed_by: str | None = None):
+    """Create notification when a task is assigned."""
+    if not task.assignee_id:
+        return
+    msg = f'"{task.title}" 태스크가 당신에게 배정되었습니다.'
+    notification = Notification(
+        user_id=task.assignee_id,
+        task_id=task.id,
+        type=NotificationType.ASSIGNMENT,
+        message=msg,
+    )
+    session.add(notification)
+
+
+def _notify_status_change(session: Session, task: Task, old_status: str, new_status: str):
+    """Create notification when task status changes."""
+    if not task.assignee_id:
+        return
+    msg = f'"{task.title}" 상태 변경: {old_status} → {new_status}'
+    notification = Notification(
+        user_id=task.assignee_id,
+        task_id=task.id,
+        type=NotificationType.STATUS_CHANGE,
+        message=msg,
+    )
+    session.add(notification)
+
+
+@router.get("", response_model=list[TaskRead])
+def list_tasks(
+    status: str | None = None,
+    assignee_id: int | None = None,
+    session: Session = Depends(get_session),
+):
+    query = select(Task)
+    if status:
+        query = query.where(Task.status == status)
+    if assignee_id:
+        query = query.where(Task.assignee_id == assignee_id)
+    query = query.order_by(Task.sort_order, Task.created_at.desc())
+    return session.exec(query).all()
+
+
+@router.post("", response_model=TaskRead, status_code=201)
+def create_task(data: TaskCreate, session: Session = Depends(get_session)):
+    task = Task.model_validate(data)
+    task.created_at = datetime.utcnow()
+    task.updated_at = datetime.utcnow()
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    if task.assignee_id:
+        _notify_assignment(session, task)
+        session.commit()
+    return task
+
+
+@router.get("/{task_id}", response_model=TaskRead)
+def get_task(task_id: int, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@router.patch("/{task_id}", response_model=TaskRead)
+def update_task(task_id: int, data: TaskUpdate, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    old_status = task.status
+    old_assignee = task.assignee_id
+    update_data = data.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(task, key, value)
+    task.updated_at = datetime.utcnow()
+
+    # Notifications
+    if "assignee_id" in update_data and update_data["assignee_id"] != old_assignee:
+        _notify_assignment(session, task)
+    if "status" in update_data and update_data["status"] != old_status:
+        _notify_status_change(session, task, old_status, update_data["status"])
+
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task
+
+
+@router.patch("/{task_id}/status", response_model=TaskRead)
+def update_task_status(
+    task_id: int, data: TaskStatusUpdate, session: Session = Depends(get_session)
+):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    old_status = task.status
+    task.status = data.status
+    task.sort_order = data.sort_order
+    task.updated_at = datetime.utcnow()
+
+    if old_status != data.status:
+        _notify_status_change(session, task, old_status, data.status)
+
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task
+
+
+@router.delete("/{task_id}", status_code=204)
+def delete_task(task_id: int, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    # Clean up image file if exists
+    if task.image_path:
+        img_file = UPLOAD_DIR / Path(task.image_path).name
+        if img_file.exists():
+            img_file.unlink()
+    session.delete(task)
+    session.commit()
+
+
+@router.post("/{task_id}/image", response_model=TaskRead)
+async def upload_task_image(
+    task_id: int,
+    file: UploadFile,
+    session: Session = Depends(get_session),
+):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Validate file type
+    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+    ext = Path(file.filename or "file.png").suffix.lower()
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed")
+
+    # Save file with unique name
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = UPLOAD_DIR / filename
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    async with aiofiles.open(filepath, "wb") as f:
+        content = await file.read()
+        await f.write(content)
+
+    # Delete old image if exists
+    if task.image_path:
+        old_file = UPLOAD_DIR / Path(task.image_path).name
+        if old_file.exists():
+            old_file.unlink()
+
+    task.image_path = f"/uploads/{filename}"
+    task.updated_at = datetime.utcnow()
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task

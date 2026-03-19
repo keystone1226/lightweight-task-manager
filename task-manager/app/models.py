@@ -1,0 +1,191 @@
+"""Database models."""
+
+from datetime import date, datetime
+from enum import Enum
+from typing import Optional
+
+from sqlmodel import Field, Relationship, SQLModel
+
+
+class Priority(str, Enum):
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
+
+class NotificationType(str, Enum):
+    MENTION = "mention"
+    STATUS_CHANGE = "status_change"
+    ASSIGNMENT = "assignment"
+
+
+# ── User ──────────────────────────────────────────────
+
+
+class UserBase(SQLModel):
+    nickname: str = Field(index=True, unique=True, max_length=50)
+    email: Optional[str] = Field(default=None, max_length=200)
+
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    tasks: list["Task"] = Relationship(back_populates="assignee_user")
+    comments: list["Comment"] = Relationship(back_populates="author")
+    notifications: list["Notification"] = Relationship(back_populates="user")
+
+
+class UserCreate(UserBase):
+    pass
+
+
+class UserRead(UserBase):
+    id: int
+    created_at: datetime
+
+
+# ── BoardColumn ───────────────────────────────────────
+
+
+class BoardColumnBase(SQLModel):
+    name: str = Field(max_length=50)
+    sort_order: int = Field(default=0)
+    color: Optional[str] = Field(default=None, max_length=20)
+
+
+class BoardColumn(BoardColumnBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+
+class BoardColumnCreate(BoardColumnBase):
+    pass
+
+
+class BoardColumnRead(BoardColumnBase):
+    id: int
+
+
+class BoardColumnUpdate(SQLModel):
+    name: Optional[str] = None
+    sort_order: Optional[int] = None
+    color: Optional[str] = None
+
+
+# ── Task ──────────────────────────────────────────────
+
+
+class TaskBase(SQLModel):
+    title: str = Field(max_length=200)
+    description: Optional[str] = Field(default=None)
+    status: str = Field(default="TODO", max_length=50)
+    priority: Priority = Field(default=Priority.MEDIUM)
+    assignee_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    figma_url: Optional[str] = Field(default=None, max_length=500)
+    confluence_url: Optional[str] = Field(default=None, max_length=500)
+    image_path: Optional[str] = Field(default=None, max_length=300)
+    due_date: Optional[date] = Field(default=None)
+    tags: Optional[str] = Field(default=None)  # JSON array string
+    sort_order: int = Field(default=0)
+
+
+class Task(TaskBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    assignee_user: Optional[User] = Relationship(back_populates="tasks")
+    comments: list["Comment"] = Relationship(
+        back_populates="task", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+
+
+class TaskCreate(SQLModel):
+    title: str
+    description: Optional[str] = None
+    status: str = "TODO"
+    priority: Priority = Priority.MEDIUM
+    assignee_id: Optional[int] = None
+    figma_url: Optional[str] = None
+    confluence_url: Optional[str] = None
+    due_date: Optional[date] = None
+    tags: Optional[str] = None
+    sort_order: int = 0
+
+
+class TaskRead(TaskBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    assignee_user: Optional[UserRead] = None
+
+
+class TaskUpdate(SQLModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[Priority] = None
+    assignee_id: Optional[int] = None
+    figma_url: Optional[str] = None
+    confluence_url: Optional[str] = None
+    due_date: Optional[date] = None
+    tags: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class TaskStatusUpdate(SQLModel):
+    status: str
+    sort_order: int = 0
+
+
+# ── Comment ───────────────────────────────────────────
+
+
+class CommentBase(SQLModel):
+    content: str
+    task_id: int = Field(foreign_key="task.id")
+    author_id: int = Field(foreign_key="user.id")
+
+
+class Comment(CommentBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    task: Optional[Task] = Relationship(back_populates="comments")
+    author: Optional[User] = Relationship(back_populates="comments")
+
+
+class CommentCreate(SQLModel):
+    content: str
+    author_id: int
+
+
+class CommentRead(CommentBase):
+    id: int
+    created_at: datetime
+    author: Optional[UserRead] = None
+
+
+# ── Notification ──────────────────────────────────────
+
+
+class Notification(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    task_id: int = Field(foreign_key="task.id")
+    type: NotificationType
+    message: str
+    is_read: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    user: Optional[User] = Relationship(back_populates="notifications")
+
+
+class NotificationRead(SQLModel):
+    id: int
+    user_id: int
+    task_id: int
+    type: NotificationType
+    message: str
+    is_read: bool
+    created_at: datetime
