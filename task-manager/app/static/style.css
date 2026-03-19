@@ -469,10 +469,31 @@ body {
 
 .comment:last-child { border-bottom: none; }
 
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
 .comment-author {
   font-weight: 600;
-  margin-right: 6px;
 }
+
+.comment-delete-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.comment:hover .comment-delete-btn { opacity: 1; }
+.comment-delete-btn:hover { color: var(--danger); }
 
 .comment-time {
   font-size: 11px;

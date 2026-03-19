@@ -453,14 +453,27 @@ async function loadComments(taskId) {
   }
   list.innerHTML = comments.map(c => {
     const content = c.content.replace(/@(\S+)/g, '<span class="mention">@$1</span>');
+    const isMine = currentUser && c.author_id === currentUser.id;
     return `
-      <div class="comment">
-        <span class="comment-author">${escHtml(c.author?.nickname || 'Unknown')}</span>
-        <span class="comment-time">${timeAgo(c.created_at)}</span>
+      <div class="comment" data-comment-id="${c.id}">
+        <div class="comment-header">
+          <span class="comment-author">${escHtml(c.author?.nickname || 'Unknown')}</span>
+          <span class="comment-time">${timeAgo(c.created_at)}</span>
+          ${isMine ? `<button class="comment-delete-btn" data-id="${c.id}" title="삭제">✕</button>` : ''}
+        </div>
         <div class="comment-content">${content}</div>
       </div>
     `;
   }).join('');
+
+  list.querySelectorAll('.comment-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('댓글을 삭제할까요?')) return;
+      const taskId = document.getElementById('taskId').value;
+      await api(`/api/comments/${btn.dataset.id}?requester_id=${currentUser.id}`, { method: 'DELETE' });
+      await loadComments(taskId);
+    });
+  });
 }
 
 document.getElementById('addCommentBtn').addEventListener('click', async () => {

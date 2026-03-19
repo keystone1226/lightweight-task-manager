@@ -16,7 +16,7 @@ from app.models import (
     User,
 )
 
-router = APIRouter(prefix="/api/tasks/{task_id}/comments", tags=["comments"])
+router = APIRouter(tags=["comments"])
 
 MENTION_PATTERN = re.compile(r"@(\S+)")
 
@@ -47,7 +47,7 @@ def _create_mention_notifications(
         session.add(notification)
 
 
-@router.get("", response_model=list[CommentRead])
+@router.get("/api/tasks/{task_id}/comments", response_model=list[CommentRead])
 def list_comments(task_id: int, session: Session = Depends(get_session)):
     task = session.get(Task, task_id)
     if not task:
@@ -60,7 +60,7 @@ def list_comments(task_id: int, session: Session = Depends(get_session)):
     return comments
 
 
-@router.post("", response_model=CommentRead, status_code=201)
+@router.post("/api/tasks/{task_id}/comments", response_model=CommentRead, status_code=201)
 def create_comment(
     task_id: int, data: CommentCreate, session: Session = Depends(get_session)
 ):
@@ -85,3 +85,18 @@ def create_comment(
     session.refresh(comment)
 
     return comment
+
+
+@router.delete("/api/comments/{comment_id}", status_code=204)
+def delete_comment(
+    comment_id: int,
+    requester_id: int,
+    session: Session = Depends(get_session),
+):
+    comment = session.get(Comment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.author_id != requester_id:
+        raise HTTPException(status_code=403, detail="본인이 작성한 댓글만 삭제할 수 있습니다.")
+    session.delete(comment)
+    session.commit()
