@@ -74,14 +74,16 @@
             <input type="text" id="taskTags" placeholder="UI, Icon, Research">
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="taskFigma">Figma URL</label>
-            <input type="url" id="taskFigma" placeholder="https://figma.com/...">
-          </div>
-          <div class="form-group">
-            <label for="taskConfluence">Confluence URL</label>
-            <input type="url" id="taskConfluence" placeholder="https://confluence...">
+        <div class="form-group">
+          <label for="taskLinkUrl">Link URL</label>
+          <input type="url" id="taskLinkUrl" placeholder="https://...">
+          <div class="og-preview" id="ogPreview" style="display:none">
+            <img class="og-preview-image" id="ogPreviewImage" style="display:none">
+            <div class="og-preview-text">
+              <div class="og-preview-site" id="ogPreviewSite"></div>
+              <div class="og-preview-title" id="ogPreviewTitle"></div>
+              <div class="og-preview-desc" id="ogPreviewDesc"></div>
+            </div>
           </div>
         </div>
         <div class="form-group">

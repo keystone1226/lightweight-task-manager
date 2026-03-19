@@ -240,14 +240,9 @@ function renderTaskCard(task) {
     : '';
 
   const linkIcons = [];
-  if (task.figma_url) {
-    linkIcons.push(`<a class="link-icon" href="${escHtml(task.figma_url)}" target="_blank" title="Figma" onclick="event.stopPropagation()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5zM12 2h3.5a3.5 3.5 0 1 1 0 7H12V2zm0 12.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zm0-5.5h3.5a3.5 3.5 0 1 1 0 7H12V9zM5 12a3.5 3.5 0 0 1 3.5-3.5H12V12H8.5A3.5 3.5 0 0 1 5 12z"/></svg>
-    </a>`);
-  }
-  if (task.confluence_url) {
-    linkIcons.push(`<a class="link-icon" href="${escHtml(task.confluence_url)}" target="_blank" title="Confluence" onclick="event.stopPropagation()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.046 18.395c-.345.575-.223.924.272 1.244l4.143 2.567c.494.32.843.198 1.188-.377.794-1.33 1.825-2.712 3.614-2.712 1.51 0 2.392.897 4.156 3.052.377.46.726.5 1.22.18l4.142-2.927c.494-.345.395-.694.05-1.193-2.138-3.076-4.583-6.48-9.548-6.48-4.74 0-7.51 3.107-9.237 6.646zM21.954 5.605c.345-.575.223-.924-.272-1.244L17.54 1.794c-.494-.32-.843-.198-1.188.377-.794 1.33-1.825 2.712-3.614 2.712-1.51 0-2.392-.897-4.156-3.052-.377-.46-.726-.5-1.22-.18L3.22 4.578c-.494.345-.395.694-.05 1.193 2.138 3.076 4.583 6.48 9.548 6.48 4.74 0 7.51-3.107 9.237-6.646z"/></svg>
+  if (task.link_url) {
+    linkIcons.push(`<a class="link-icon" href="${escHtml(task.link_url)}" target="_blank" title="Link" onclick="event.stopPropagation()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
     </a>`);
   }
 
@@ -289,8 +284,9 @@ function openTaskModal(task, defaultStatus) {
     document.getElementById('taskAssignee').value = task.assignee_id || '';
     document.getElementById('taskDueDate').value = task.due_date || '';
     document.getElementById('taskTags').value = parseTags(task.tags).join(', ');
-    document.getElementById('taskFigma').value = task.figma_url || '';
-    document.getElementById('taskConfluence').value = task.confluence_url || '';
+    document.getElementById('taskLinkUrl').value = task.link_url || '';
+    if (task.link_url) fetchOGPreview(task.link_url);
+    else clearOGPreview();
     deleteBtn.style.display = 'block';
     commentsSection.style.display = 'block';
     loadComments(task.id);
@@ -310,6 +306,7 @@ function openTaskModal(task, defaultStatus) {
     deleteBtn.style.display = 'none';
     commentsSection.style.display = 'none';
     document.getElementById('imagePreview').style.display = 'none';
+    clearOGPreview();
   }
 
   modal.classList.add('active');
@@ -341,8 +338,7 @@ document.getElementById('taskForm').addEventListener('submit', async e => {
     assignee_id: document.getElementById('taskAssignee').value || null,
     due_date: document.getElementById('taskDueDate').value || null,
     tags,
-    figma_url: document.getElementById('taskFigma').value || null,
-    confluence_url: document.getElementById('taskConfluence').value || null,
+    link_url: document.getElementById('taskLinkUrl').value || null,
   };
 
   if (data.assignee_id) data.assignee_id = parseInt(data.assignee_id);
@@ -379,6 +375,46 @@ document.getElementById('deleteTaskBtn').addEventListener('click', async () => {
   renderBoard();
   closeTaskModal();
 });
+
+/* ── OG Preview ─────────────────────────────────── */
+let ogDebounceTimer = null;
+
+document.getElementById('taskLinkUrl').addEventListener('input', () => {
+  clearTimeout(ogDebounceTimer);
+  const url = document.getElementById('taskLinkUrl').value.trim();
+  if (!url) { clearOGPreview(); return; }
+  ogDebounceTimer = setTimeout(() => fetchOGPreview(url), 800);
+});
+
+async function fetchOGPreview(url) {
+  try {
+    const data = await api(`/api/og-preview?url=${encodeURIComponent(url)}`);
+    if (!data.title && !data.image) { clearOGPreview(); return; }
+    showOGPreview(data);
+  } catch {
+    clearOGPreview();
+  }
+}
+
+function showOGPreview(data) {
+  const preview = document.getElementById('ogPreview');
+  const img = document.getElementById('ogPreviewImage');
+  document.getElementById('ogPreviewSite').textContent = data.site_name || '';
+  document.getElementById('ogPreviewTitle').textContent = data.title || '';
+  document.getElementById('ogPreviewDesc').textContent = data.description || '';
+  if (data.image) {
+    img.src = data.image;
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+  }
+  preview.style.display = 'flex';
+}
+
+function clearOGPreview() {
+  document.getElementById('ogPreview').style.display = 'none';
+  document.getElementById('ogPreviewImage').style.display = 'none';
+}
 
 /* ── Image Upload ───────────────────────────────── */
 const imageUploadArea = document.getElementById('imageUploadArea');

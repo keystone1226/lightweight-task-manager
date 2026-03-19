@@ -81,8 +81,7 @@ class TaskBase(SQLModel):
     status: str = Field(default="TODO", max_length=50)
     priority: Priority = Field(default=Priority.MEDIUM)
     assignee_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    figma_url: Optional[str] = Field(default=None, max_length=500)
-    confluence_url: Optional[str] = Field(default=None, max_length=500)
+    link_url: Optional[str] = Field(default=None, max_length=500)
     image_path: Optional[str] = Field(default=None, max_length=300)
     due_date: Optional[date] = Field(default=None)
     tags: Optional[str] = Field(default=None)  # JSON array string
@@ -106,8 +105,7 @@ class TaskCreate(SQLModel):
     status: str = "TODO"
     priority: Priority = Priority.MEDIUM
     assignee_id: Optional[int] = None
-    figma_url: Optional[str] = None
-    confluence_url: Optional[str] = None
+    link_url: Optional[str] = None
     due_date: Optional[date] = None
     tags: Optional[str] = None
     sort_order: int = 0
@@ -126,8 +124,7 @@ class TaskUpdate(SQLModel):
     status: Optional[str] = None
     priority: Optional[Priority] = None
     assignee_id: Optional[int] = None
-    figma_url: Optional[str] = None
-    confluence_url: Optional[str] = None
+    link_url: Optional[str] = None
     due_date: Optional[date] = None
     tags: Optional[str] = None
     sort_order: Optional[int] = None
